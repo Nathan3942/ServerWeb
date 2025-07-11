@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:17:59 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/07/07 14:14:52 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/07/11 06:27:27 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,7 +15,7 @@
 #pragma once
 
 #include "request.hpp"
-#include "responce.hpp"
+#include "response.hpp"
 #include "connexion.hpp"
 
 #include <iostream>
@@ -33,7 +33,7 @@
 #include <map>
 #include <signal.h>
 
-
+class Connexion;
 
 class Server {
     private:

@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:18:38 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/07/10 15:53:36 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/07/11 06:56:46 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -137,7 +137,7 @@ void	Server::accept_connection(int listen_fd)
 	clients[client_fd] = Connexion(client_fd);
 
 	struct epoll_event	ev;
-	ev.events = EPOLLIN | EPOLLET;
+	ev.events = EPOLLIN;
 	ev.data.fd = client_fd;
 	if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, &ev) == -1)
 	{
@@ -192,7 +192,7 @@ ssize_t Server::send_all(Connexion &conn, const char* buf, size_t len)
 		}
 	}
 
-	ev.events = EPOLLIN | EPOLLET;
+	ev.events = EPOLLIN;
 	if (epoll_ctl(epoll_fd, EPOLL_CTL_MOD, conn.get_fd(), &ev) == -1)
 	{
 		perror("epoll_ctl: restore EPOLLIN");
@@ -219,9 +219,12 @@ void Server::start()
 
 	while (isRunning)
 	{
+		std::cout << "Debut de boucle\n";
 		int nfds = epoll_wait(epoll_fd, events, max_events, -1);
+		std::cout << "Apr epollwait\n";
 		if (nfds == -1)
 		{
+			//!\\/
 			if (errno == EINTR)
         		continue;
 			perror("epoll_wait");
@@ -246,24 +249,21 @@ void Server::start()
 			// Lecture de la requête
 			if (events[i].events & EPOLLIN)
 			{
+				std::cout << "Nouvelle requete:" << std::endl;
 				Request req(fd);
 
-				if (req.get_raw_request() == "")
-				{
+				if (req.get_raw_request().empty())
 					conn.set_state(CLOSED);
-				}
 				else if (req.get_raw_request().find("\r\n\r\n") != std::string::npos)
 				{
-					Responce res(req.get_path());
-					// std::vector<char> response = res.get_response();
-
-					// Stocker la réponse dans la Connexion
-					conn.set_write_buffer(res.get_response());
+					Response* res = new Response(req.get_path());
+					conn.set_response(res);
+					conn.set_write_buffer(res->get_next_chunk());
 					conn.set_state(WRITING);
 
 					// Modifier les événements pour écouter EPOLLOUT
 					struct epoll_event ev;
-					ev.events = EPOLLOUT | EPOLLET;
+					ev.events = EPOLLOUT;
 					ev.data.fd = fd;
 					if (epoll_ctl(epoll_fd, EPOLL_CTL_MOD, fd, &ev) == -1)
 					{
@@ -273,41 +273,90 @@ void Server::start()
 				}
 			}
 
-			//Envoi de la réponse
+			//Envoiset_state de la réponse
 			if (events[i].events & EPOLLOUT)
 			{
 				if (conn.get_state() == WRITING)
 				{
 					std::vector<char>& buf = conn.get_write_buffer();
-					if (send_all(conn, &buf[0], buf.size()) >= 0 &&
-						conn.get_bytes_sent() == buf.size())
+					size_t total = buf.size();
+					std::cout << &buf[conn.get_bytes_sent()] << std::endl;
+					while (conn.get_bytes_sent() < total)
 					{
-						// Tout envoyé, retour en lecture
-						struct epoll_event ev;
-						ev.events = EPOLLIN | EPOLLET;
-						ev.data.fd = fd;
-						if (epoll_ctl(epoll_fd, EPOLL_CTL_MOD, fd, &ev) == -1)
+						ssize_t sent = send(fd, &buf[conn.get_bytes_sent()], total - conn.get_bytes_sent(), 0);
+						if (sent < 0)
 						{
-							perror("epoll_ctl: restore EPOLLIN");
+							perror("send");
 							conn.set_state(CLOSED);
+							continue;
 						}
-						else
-							conn.set_state(READING);
+						conn.set_bytes_sent(conn.get_bytes_sent() + sent);
 					}
+					if (conn.get_bytes_sent() < buf.size())
+						continue;
+					
+					conn.clear();
+					Response* res = conn.get_response();
+					if (res && res->has_more_data())
+					{
+						std::vector<char> chunk = res->get_next_chunk();
+						conn.get_write_buffer() = chunk;
+					}
+					else
+					{
+						//fin d'envoie
+						if (res)
+						{
+							res->close();
+							delete res;
+							conn.set_response(NULL);
+						}
+					}
+					
+					// if (send_all(conn, &buf[0], buf.size()) >= 0 &&
+					// 	conn.get_bytes_sent() == buf.size())
+					// {
+						// Tout envoyé, retour en lecture
+					struct epoll_event ev;
+					ev.events = EPOLLIN;
+					ev.data.fd = fd;
+					if (epoll_ctl(epoll_fd, EPOLL_CTL_MOD, fd, &ev) == -1)
+					{
+						perror("epoll_ctl: restore EPOLLIN");
+						conn.set_state(CLOSED);
+					}
+					else
+						conn.set_state(READING);
 				}
 			}
 
 			// close les fd
 			if (conn.get_state() == CLOSED)
 			{
+				if (conn.get_response())
+				{
+					conn.get_response()->close();
+					delete conn.get_response();
+				}
 				std::cout << "Closing connection: fd=" << fd << std::endl;
 				epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
 				close(fd);
 				clients.erase(fd);
 			}
+			
+			
+			// if (conn.get_state() == CLOSED)
+			// {
+			// 	std::cout << "Closing connection: fd=" << fd << std::endl;
+			// 	epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
+			// 	close(fd);
+			// 	clients.erase(fd);
+			// }
+			std::cout << "Fin de boucle\n";
 		}
 	}
 }
+
 
 
 // void Server::start()

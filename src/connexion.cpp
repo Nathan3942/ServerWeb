@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/07/04 17:45:27 by njeanbou          #+#    #+#             */
-/*   Updated: 2025/07/07 13:24:47 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/07/10 17:47:47 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -40,6 +40,21 @@ std::vector<char>& Connexion::get_write_buffer()
 size_t& Connexion::get_bytes_sent()
 {
 	return bytes_sent;
+}
+
+Response*	Connexion::get_response()
+{
+	return (response);
+}
+
+void	Connexion::set_response(Response* res)
+{
+	response = res;
+}
+
+void	Connexion::set_bytes_sent(size_t _byte_sent)
+{
+	bytes_sent = _byte_sent;
 }
 
 void Connexion::set_write_buffer(const std::vector<char>& data)
