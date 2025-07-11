@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:46:56 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/07/10 17:31:37 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/07/11 07:40:17 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -23,18 +23,8 @@ Response::Response(const std::string& _path) : path(_path), header_sent(false)
 	std::ostringstream oss;
 	oss << "HTTP/1.1 200 OK\r\n";
 	oss << "Content-Type: " << content_type << "\r\n";
-	oss << "Connection: close\r\n\r\n";
+	oss << "Connection: close\r\n\r\n"; //close keep-alive
 	header = oss.str();
-	
-	
-	// content = read_file(path);
-    // if (content == "-404")
-    // {
-	// 	content_type = "text/html";
-    //     content = read_file("/404.html");
-    // }
-	// std::cout << "Content type : " << content_type << std::endl;
-    // http_response = build_reponse(content);
 }
 
 Response::~Response()

@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/07/04 17:45:27 by njeanbou          #+#    #+#             */
-/*   Updated: 2025/07/10 17:47:47 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/07/11 07:25:54 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -75,6 +75,5 @@ void Connexion::clear()
 {
 	write_buffer.clear();
 	bytes_sent = 0;
-	state = READING;
 }
 

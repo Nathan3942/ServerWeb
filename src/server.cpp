@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:18:38 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/07/11 06:56:46 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/07/11 08:31:40 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -37,7 +37,11 @@ Server::Server(std::vector<int>& ports_) : ports(ports_), isRunning(false)
 			return ;
 		}
 
-		set_nonblocking(server_fd);
+		if (set_nonblocking(server_fd) == -1)
+		{
+			perror("set_nonblocking");
+			exit(1);
+		}
 
 		struct sockaddr_in serverAddr;
 		memset(&serverAddr, 0, sizeof(serverAddr));
@@ -46,7 +50,8 @@ Server::Server(std::vector<int>& ports_) : ports(ports_), isRunning(false)
 		serverAddr.sin_addr.s_addr = INADDR_ANY;
 		serverAddr.sin_port = htons(ports[i]);
 
-		if (bind(server_fd, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) {
+		if (bind(server_fd, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0)
+		{
 			perror("bind");
 			exit(1);
 		}
@@ -146,62 +151,7 @@ void	Server::accept_connection(int listen_fd)
 	}
 }
 
-ssize_t Server::send_all(Connexion &conn, const char* buf, size_t len)
-{  
-	size_t total_sent = 0;
-    struct epoll_event ev;
-	ev.events = EPOLLOUT;
-	ev.data.fd = conn.get_fd();
-
-	if (epoll_ctl(epoll_fd, EPOLL_CTL_MOD, conn.get_fd(), &ev) == -1)
-	{
-		perror("epoll_ctl: mod EPOLLOUT");
-		conn.set_state(CLOSED);
-		return (-1);
-	}
-
-	while (total_sent < len)
-	{
-		struct epoll_event out_event;
-		int ready = epoll_wait(epoll_fd, &out_event, 1, -1);
-
-		if (ready < 0)
-		{
-			perror("epoll_wait: EPOLLOUT");
-
-			conn.set_state(CLOSED);
-			return (-1);
-		}
-		else if (ready == 0)
-		{
-			//std::cerr << "Timout waiting for socket be writable\n";
-			usleep(1000);
-			continue ;
-		}
-		std::cout.write(buf + total_sent, len - total_sent);
-		if (out_event.events & EPOLLOUT)
-		{
-			ssize_t sent = send(ev.data.fd, buf + total_sent, len - total_sent, 0);
-			if (sent <= 0)
-			{
-				std::cerr << "Failed to send data\n";
-				conn.set_state(CLOSED);
-				return (-1);
-			}
-			total_sent += sent;
-		}
-	}
-
-	ev.events = EPOLLIN;
-	if (epoll_ctl(epoll_fd, EPOLL_CTL_MOD, conn.get_fd(), &ev) == -1)
-	{
-		perror("epoll_ctl: restore EPOLLIN");
-		conn.set_state(CLOSED);
-		return (-1);
-	}
-	conn.set_state(READING);
-	return (total_sent);
-}
+// 
 
 void	Server::close_socket()
 {
@@ -219,9 +169,9 @@ void Server::start()
 
 	while (isRunning)
 	{
-		std::cout << "Debut de boucle\n";
+		std::cout << "Debut de boucle\nEvent : ";
 		int nfds = epoll_wait(epoll_fd, events, max_events, -1);
-		std::cout << "Apr epollwait\n";
+		std::cout << "Apr epollwait\n" << nfds << std::endl;
 		if (nfds == -1)
 		{
 			//!\\/
@@ -256,6 +206,7 @@ void Server::start()
 					conn.set_state(CLOSED);
 				else if (req.get_raw_request().find("\r\n\r\n") != std::string::npos)
 				{
+					std::cout << "fin de fichier" << std::endl;
 					Response* res = new Response(req.get_path());
 					conn.set_response(res);
 					conn.set_write_buffer(res->get_next_chunk());
@@ -273,50 +224,46 @@ void Server::start()
 				}
 			}
 
-			//Envoiset_state de la réponse
+			//Envoi de la réponse
 			if (events[i].events & EPOLLOUT)
 			{
 				if (conn.get_state() == WRITING)
 				{
 					std::vector<char>& buf = conn.get_write_buffer();
 					size_t total = buf.size();
-					std::cout << &buf[conn.get_bytes_sent()] << std::endl;
-					while (conn.get_bytes_sent() < total)
+					ssize_t sent = send(fd, &buf[conn.get_bytes_sent()], total - conn.get_bytes_sent(), 0);
+					if (sent < 0)
 					{
-						ssize_t sent = send(fd, &buf[conn.get_bytes_sent()], total - conn.get_bytes_sent(), 0);
-						if (sent < 0)
-						{
-							perror("send");
-							conn.set_state(CLOSED);
-							continue;
-						}
-						conn.set_bytes_sent(conn.get_bytes_sent() + sent);
-					}
-					if (conn.get_bytes_sent() < buf.size())
+						perror("send");
+						conn.set_state(CLOSED);
 						continue;
-					
-					conn.clear();
-					Response* res = conn.get_response();
-					if (res && res->has_more_data())
-					{
-						std::vector<char> chunk = res->get_next_chunk();
-						conn.get_write_buffer() = chunk;
 					}
-					else
+					conn.set_bytes_sent(conn.get_bytes_sent() + sent);
+
+					if (conn.get_bytes_sent() == buf.size())
 					{
-						//fin d'envoie
+						conn.clear();
+						
+						Response* res = conn.get_response();
 						if (res)
 						{
-							res->close();
-							delete res;
-							conn.set_response(NULL);
+							std::vector<char> chunk = res->get_next_chunk();
+							if (!chunk.empty())
+							{
+								conn.get_write_buffer() = chunk;
+								continue;
+							}
+							else
+							{
+								res->close();
+								delete res;
+								conn.set_response(NULL);
+								conn.set_state(CLOSED);
+								break;
+							}
 						}
 					}
 					
-					// if (send_all(conn, &buf[0], buf.size()) >= 0 &&
-					// 	conn.get_bytes_sent() == buf.size())
-					// {
-						// Tout envoyé, retour en lecture
 					struct epoll_event ev;
 					ev.events = EPOLLIN;
 					ev.data.fd = fd;
@@ -344,18 +291,67 @@ void Server::start()
 				clients.erase(fd);
 			}
 			
-			
-			// if (conn.get_state() == CLOSED)
-			// {
-			// 	std::cout << "Closing connection: fd=" << fd << std::endl;
-			// 	epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
-			// 	close(fd);
-			// 	clients.erase(fd);
-			// }
 			std::cout << "Fin de boucle\n";
 		}
 	}
 }
+
+// ssize_t Server::send_all(Connexion &conn, const char* buf, size_t len)
+// {  
+// 	size_t total_sent = 0;
+//     struct epoll_event ev;
+// 	ev.events = EPOLLOUT;
+// 	ev.data.fd = conn.get_fd();
+
+// 	if (epoll_ctl(epoll_fd, EPOLL_CTL_MOD, conn.get_fd(), &ev) == -1)
+// 	{
+// 		perror("epoll_ctl: mod EPOLLOUT");
+// 		conn.set_state(CLOSED);
+// 		return (-1);
+// 	}
+
+// 	while (total_sent < len)
+// 	{
+// 		struct epoll_event out_event;
+// 		int ready = epoll_wait(epoll_fd, &out_event, 1, -1);
+
+// 		if (ready < 0)
+// 		{
+// 			perror("epoll_wait: EPOLLOUT");
+
+// 			conn.set_state(CLOSED);
+// 			return (-1);
+// 		}
+// 		else if (ready == 0)
+// 		{
+// 			//std::cerr << "Timout waiting for socket be writable\n";
+// 			usleep(1000);
+// 			continue ;
+// 		}
+// 		std::cout.write(buf + total_sent, len - total_sent);
+// 		if (out_event.events & EPOLLOUT)
+// 		{
+// 			ssize_t sent = send(ev.data.fd, buf + total_sent, len - total_sent, 0);
+// 			if (sent <= 0)
+// 			{
+// 				std::cerr << "Failed to send data\n";
+// 				conn.set_state(CLOSED);
+// 				return (-1);
+// 			}
+// 			total_sent += sent;
+// 		}
+// 	}
+
+// 	ev.events = EPOLLIN;
+// 	if (epoll_ctl(epoll_fd, EPOLL_CTL_MOD, conn.get_fd(), &ev) == -1)
+// 	{
+// 		perror("epoll_ctl: restore EPOLLIN");
+// 		conn.set_state(CLOSED);
+// 		return (-1);
+// 	}
+// 	conn.set_state(READING);
+// 	return (total_sent);
+// }
 
 
 
