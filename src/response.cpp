@@ -6,25 +6,58 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:46:56 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/07/11 07:40:17 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/07/24 18:35:49 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "../include/response.hpp"
 
-Response::Response(const std::string& _path) : path(_path), header_sent(false)
+Response::Response(const std::string& _path, const Request& req, const std::string root) : path(_path), header_sent(false)
 {
-	std::string full_path = std::string(WEBROOT) + path;
-	content_type = get_content_type(path);
-    file.open(full_path.c_str(), std::ios::binary);
-	if (!file.is_open())
-		file.open((std::string(WEBROOT) + "/404.html").c_str(), std::ios::binary);
+	std::string full_path = root + path;
+	std::cout << "Full path : " << full_path << std::endl;
+	std::streampos size;
 
-	std::ostringstream oss;
-	oss << "HTTP/1.1 200 OK\r\n";
-	oss << "Content-Type: " << content_type << "\r\n";
-	oss << "Connection: close\r\n\r\n"; //close keep-alive
-	header = oss.str();
+	if (req.get_method() == "GET")
+	{
+		content_type = get_content_type(path);
+		file.open(full_path.c_str(), std::ios::binary);
+		if (!file.is_open())
+		{
+			file.open((root + "/404.html").c_str(), std::ios::binary);
+			file.seekg(0, std::ios::end);
+			size = file.tellg();
+			file.seekg(0, std::ios::beg);
+			content_type = get_content_type("/404.html");
+			std::ostringstream oss;
+			oss << "HTTP/1.1 404 Not Found\r\n";
+			oss << "Content-Type: " << content_type << "\r\n";
+			oss << "Content-Length: " << size << "\r\n";
+			oss << "Connection: close\r\n\r\n"; //close keep-alive
+			header = oss.str();
+		}
+		else
+		{
+			file.seekg(0, std::ios::end);
+			size = file.tellg();
+			file.seekg(0, std::ios::beg);
+			std::ostringstream oss;
+			oss << "HTTP/1.1 200 OK\r\n";
+			oss << "Content-Type: " << content_type << "\r\n";
+			oss << "Content-Length: " << size << "\r\n";
+			oss << "Connection: close\r\n\r\n"; //close keep-alive
+			header = oss.str();
+		}
+	}
+	else if (req.get_method() == "DELETE")
+	{
+		if (std::remove(full_path.c_str()) == 0)
+			header = "HTTP/1.1 200 OK\r\n\r\nFile deleted.";
+		else
+			header = "HTTP/1.1 404 Not Found\r\n\r\nFile not found.";
+	}
+
+	std::cout << "Header : " << header << std::endl;
 }
 
 Response::~Response()
@@ -61,43 +94,6 @@ bool	Response::has_more_data() const
 	return (file && !file.eof());
 }
 
-// std::string read_binary(const std::string& filepath)
-// {
-// 	std::ifstream file(filepath.c_str(), std::ios::in | std::ios::binary);
-// 	if (!file)
-// 		return ("-404");
-	
-// 	std::string content;
-// 	char	buffer[1024];
-// 	while (file.read(buffer, sizeof(buffer)))
-// 		content.append(buffer, file.gcount());
-// 	if (file.gcount() > 0)
-// 		content.append(buffer, file.gcount());
-// 	return (content);
-// }
-
-// std::string read_default(const std::string& filepath)
-// {
-//     std::ifstream file(filepath.c_str());
-//     if (!file)
-//         return ("-404");
-//     std::string content;
-//     char c;
-//     while (file.get(c))
-//         content += c;
-//     return (content);
-// }
-
-// std::string Response::read_file(const std::string& path)
-// {
-//     std::string full_path = std::string(WEBROOT) + path;
-// 	std::cout << full_path << std::endl;
-	
-// 	if (content_type.find("text/") != std::string::npos)
-// 	   	return (read_default(full_path));
-// 	else
-// 		return (read_binary(full_path));
-// }
 
 std::string	Response::get_content_type(const std::string& path)
 {
@@ -180,6 +176,45 @@ std::string	Response::get_content_type(const std::string& path)
 		return (it->second);
 	return ("application/octet-stream");
 }
+
+
+// std::string read_binary(const std::string& filepath)
+// {
+// 	std::ifstream file(filepath.c_str(), std::ios::in | std::ios::binary);
+// 	if (!file)
+// 		return ("-404");
+	
+// 	std::string content;
+// 	char	buffer[1024];
+// 	while (file.read(buffer, sizeof(buffer)))
+// 		content.append(buffer, file.gcount());
+// 	if (file.gcount() > 0)
+// 		content.append(buffer, file.gcount());
+// 	return (content);
+// }
+
+// std::string read_default(const std::string& filepath)
+// {
+//     std::ifstream file(filepath.c_str());
+//     if (!file)
+//         return ("-404");
+//     std::string content;
+//     char c;
+//     while (file.get(c))
+//         content += c;
+//     return (content);
+// }
+
+// std::string Response::read_file(const std::string& path)
+// {
+//     std::string full_path = std::string(WEBROOT) + path;
+// 	std::cout << full_path << std::endl;
+	
+// 	if (content_type.find("text/") != std::string::npos)
+// 	   	return (read_default(full_path));
+// 	else
+// 		return (read_binary(full_path));
+// }
 
 // std::vector<char> Response::build_reponse(const std::string& body)
 // {

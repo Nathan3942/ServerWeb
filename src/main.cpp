@@ -6,21 +6,42 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:58:45 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/07/10 15:14:56 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/07/22 12:41:33 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "../include/server.hpp"
 
-int main()
+static	Server* global_server = NULL;
+
+void	signal_handler(int signal)
 {
+	if (signal == SIGINT && global_server)
+	{
+		global_server->shutdown();
+	}
+}
+
+int main(int ac, char **av)
+{
+    if (ac > 2)
+        return (1);
     // Ignore le signal SIGPIPE pour éviter que send sur socket fermée plante le process
     signal(SIGPIPE, SIG_IGN);
-    std::vector<int> ports;
-    ports.push_back(8080);
-    ports.push_back(8081);
-    ports.push_back(8082);
-    Server* s = new Server(ports);
+    // std::vector<int> ports;
+    // ports.push_back(8080);
+    // ports.push_back(8081);
+    // ports.push_back(8082);
+    Server* s = new Server(av[1]);
+
+	global_server = s;
+
+    struct sigaction sa;
+    sa.sa_handler = signal_handler;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    sigaction(SIGINT, &sa, NULL);
+
     s->start();
     
     delete s;

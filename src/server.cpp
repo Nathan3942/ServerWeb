@@ -6,15 +6,18 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:18:38 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/07/11 08:31:40 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/07/24 19:12:10 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "../include/server.hpp"
 
-Server::Server(std::vector<int>& ports_) : ports(ports_), isRunning(false)
+Server::Server(const char* _conf) : isRunning(false)
 {
-	change_host();
+	//change_host();
+	std::cout << "Debut config" << std::endl;
+	conf = new Config(_conf);
+	
 	epoll_fd = epoll_create1(0);
 	if (epoll_fd == -1)
 	{
@@ -22,7 +25,7 @@ Server::Server(std::vector<int>& ports_) : ports(ports_), isRunning(false)
 		exit(1);
 	}
 
-	for (size_t i = 0; i < ports.size(); ++i)
+	for (size_t i = 0; i < conf->get_port().size(); ++i)
 	{
 		int server_fd = socket(AF_INET, SOCK_STREAM, 0);
 		if (server_fd < 0) {
@@ -48,7 +51,7 @@ Server::Server(std::vector<int>& ports_) : ports(ports_), isRunning(false)
 		serverAddr.sin_family = AF_INET;
 
 		serverAddr.sin_addr.s_addr = INADDR_ANY;
-		serverAddr.sin_port = htons(ports[i]);
+		serverAddr.sin_port = htons(conf->get_port()[i]);
 
 		if (bind(server_fd, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0)
 		{
@@ -72,15 +75,44 @@ Server::Server(std::vector<int>& ports_) : ports(ports_), isRunning(false)
 		}
 
 		sockets.push_back(server_fd);
-        std::cout << "Listening on port " << ports[i] << std::endl;
+        std::cout << "Listening on port " << conf->get_port()[i] << std::endl;
 	}
 }
 
 Server::~Server()
 {
+	delete conf;
+}
+
+void	Server::close_socket()
+{
+	for (size_t i = 0; i < sockets.size(); ++i)
+		close(sockets[i]);
+	sockets.clear();
+}
+
+
+void	Server::shutdown()
+{
+	std::cout << "\nShutting down server..." << std::endl;
+
+	for (std::map<int, Connexion>::iterator it = clients.begin(); it != clients.end(); ++it)
+	{
+		int fd = it->first;
+		if (it->second.get_response())
+		{
+			it->second.get_response()->close();
+			delete it->second.get_response();
+		}
+		close(fd);
+	}
+	clients.clear();
+
 	close_socket();
 
+	if (epoll_fd != -1)
 		close(epoll_fd);
+	isRunning = false;
 }
 
 void	Server::change_host()
@@ -153,14 +185,6 @@ void	Server::accept_connection(int listen_fd)
 
 // 
 
-void	Server::close_socket()
-{
-	for (size_t i = 0; i < sockets.size(); ++i)
-		close(sockets[i]);
-	sockets.clear();
-}
-
-
 void Server::start()
 {
 	const int max_events = 100;
@@ -169,9 +193,8 @@ void Server::start()
 
 	while (isRunning)
 	{
-		std::cout << "Debut de boucle\nEvent : ";
+		// std::cout << "Debut de boucle\nEvent : ";
 		int nfds = epoll_wait(epoll_fd, events, max_events, -1);
-		std::cout << "Apr epollwait\n" << nfds << std::endl;
 		if (nfds == -1)
 		{
 			//!\\/
@@ -200,14 +223,14 @@ void Server::start()
 			if (events[i].events & EPOLLIN)
 			{
 				std::cout << "Nouvelle requete:" << std::endl;
-				Request req(fd);
+				Request req(fd, conf->get_index()[0]);
 
 				if (req.get_raw_request().empty())
 					conn.set_state(CLOSED);
 				else if (req.get_raw_request().find("\r\n\r\n") != std::string::npos)
 				{
 					std::cout << "fin de fichier" << std::endl;
-					Response* res = new Response(req.get_path());
+					Response* res = new Response(req.get_path(), req, conf->get_root());
 					conn.set_response(res);
 					conn.set_write_buffer(res->get_next_chunk());
 					conn.set_state(WRITING);
@@ -232,6 +255,7 @@ void Server::start()
 					std::vector<char>& buf = conn.get_write_buffer();
 					size_t total = buf.size();
 					ssize_t sent = send(fd, &buf[conn.get_bytes_sent()], total - conn.get_bytes_sent(), 0);
+					//std::cout << &buf[conn.get_bytes_sent()] << std::endl;
 					if (sent < 0)
 					{
 						perror("send");
@@ -291,7 +315,7 @@ void Server::start()
 				clients.erase(fd);
 			}
 			
-			std::cout << "Fin de boucle\n";
+			// std::cout << "Fin de boucle\n";
 		}
 	}
 }

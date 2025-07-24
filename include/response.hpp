@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:48:05 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/07/11 06:29:26 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/07/24 18:23:18 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -26,6 +26,8 @@
 
 #define WEBROOT "./www"
 
+class Request;
+
 class Response
 {
 private:
@@ -39,7 +41,7 @@ private:
 	// std::vector<char> http_response;
 	
 public:
-    Response(const std::string& _path);
+    Response(const std::string& _path, const Request& req, const std::string root);
     ~Response();
 
 	bool	has_more_data() const;
