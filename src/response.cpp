@@ -6,16 +6,15 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:46:56 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/07/24 18:35:49 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/07/24 19:36:56 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "../include/response.hpp"
 
-Response::Response(const std::string& _path, const Request& req, const std::string root) : path(_path), header_sent(false)
+Response::Response(const std::string& _path, const Request& req, const std::string root, const std::string error) : path(_path), header_sent(false)
 {
 	std::string full_path = root + path;
-	std::cout << "Full path : " << full_path << std::endl;
 	std::streampos size;
 
 	if (req.get_method() == "GET")
@@ -24,11 +23,11 @@ Response::Response(const std::string& _path, const Request& req, const std::stri
 		file.open(full_path.c_str(), std::ios::binary);
 		if (!file.is_open())
 		{
-			file.open((root + "/404.html").c_str(), std::ios::binary);
+			file.open((root + "/" + error).c_str(), std::ios::binary);
 			file.seekg(0, std::ios::end);
 			size = file.tellg();
 			file.seekg(0, std::ios::beg);
-			content_type = get_content_type("/404.html");
+			content_type = get_content_type("/" + error);
 			std::ostringstream oss;
 			oss << "HTTP/1.1 404 Not Found\r\n";
 			oss << "Content-Type: " << content_type << "\r\n";

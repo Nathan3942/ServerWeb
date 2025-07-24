@@ -46,5 +46,6 @@ class Config {
         std::vector<int> get_port() const; 
         std::string get_name() const;
         std::string get_root() const;
+        std::string get_error() const;
         std::vector<std::string> get_index() const;
 };

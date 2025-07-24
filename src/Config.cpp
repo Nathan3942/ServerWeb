@@ -216,6 +216,11 @@ std::string Config::get_root() const
     return root;
 }
 
+std::string Config::get_error() const
+{
+	return (error);
+}
+
 std::vector<std::string> Config::get_index() const
 {
     return index;

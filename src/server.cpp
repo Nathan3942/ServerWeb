@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:18:38 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/07/24 19:12:10 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/07/24 19:38:25 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -230,7 +230,7 @@ void Server::start()
 				else if (req.get_raw_request().find("\r\n\r\n") != std::string::npos)
 				{
 					std::cout << "fin de fichier" << std::endl;
-					Response* res = new Response(req.get_path(), req, conf->get_root());
+					Response* res = new Response(req.get_path(), req, conf->get_root(), conf->get_error());
 					conn.set_response(res);
 					conn.set_write_buffer(res->get_next_chunk());
 					conn.set_state(WRITING);
