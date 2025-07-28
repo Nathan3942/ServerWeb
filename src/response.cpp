@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:46:56 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/07/24 19:36:56 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/07/28 16:16:59 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -17,7 +17,41 @@ Response::Response(const std::string& _path, const Request& req, const std::stri
 	std::string full_path = root + path;
 	std::streampos size;
 
-	if (req.get_method() == "GET")
+	if (req.get_method() == "POST")
+	{
+		time_t now = time(0);
+		std::ostringstream oss;
+		oss << "upload_" << now << ".txt";
+		std::string filename = oss.str();
+		std::ofstream ofs(("uploads/" + filename).c_str(), std::ios::binary);
+
+		if (ofs.is_open())
+		{
+			ofs << req.get_body();
+			ofs.close();
+			header = "HTTP/1.1 200 OK\r\n"
+					"Content-Type: text/html\r\n"
+					"Content-Length: 23\r\n"
+					"Connection: close\r\n\r\n"
+					"<h1>Fichier recu</h1>";
+		}
+		else
+		{
+			header = "HTTP/1.1 500 Internal Server Error\r\n"
+					"Content-Type: text/html\r\n"
+					"Content-Length: 45\r\n"
+					"Connection: close\r\n\r\n"
+					"<h1>Erreur: impossible d'écrire le fichier</h1>";
+		}
+	}
+	else if (req.get_method() == "DELETE")
+	{
+		if (std::remove(full_path.c_str()) == 0)
+			header = "HTTP/1.1 200 OK\r\n\r\nFile deleted.";
+		else
+			header = "HTTP/1.1 404 Not Found\r\n\r\nFile not found.";
+	}
+	else
 	{
 		content_type = get_content_type(path);
 		file.open(full_path.c_str(), std::ios::binary);
@@ -47,13 +81,6 @@ Response::Response(const std::string& _path, const Request& req, const std::stri
 			oss << "Connection: close\r\n\r\n"; //close keep-alive
 			header = oss.str();
 		}
-	}
-	else if (req.get_method() == "DELETE")
-	{
-		if (std::remove(full_path.c_str()) == 0)
-			header = "HTTP/1.1 200 OK\r\n\r\nFile deleted.";
-		else
-			header = "HTTP/1.1 404 Not Found\r\n\r\nFile not found.";
 	}
 
 	std::cout << "Header : " << header << std::endl;

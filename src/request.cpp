@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:47:14 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/07/24 18:18:02 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/07/28 16:11:01 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -29,24 +29,52 @@ Request::~Request()
 
 }
 
-std::string	Request::receive_request(int client_fd)
+std::string Request::receive_request(int client_fd)
 {
-
-    const int bufferSize = 1024;
+    const int bufferSize = 8192;
     char buffer[bufferSize];
-    memset(buffer, 0, bufferSize);
+    std::string request;
+    ssize_t bytesRead = 0;
 
-    // int bytesRead = read(client_fd, buffer, bufferSize - 1);
-	size_t bytesRead = recv(client_fd, buffer, bufferSize - 1, 0);
-    if (bytesRead <= 0) {
-        perror("read");
-        return ("");
+    while (true)
+	{
+        memset(buffer, 0, bufferSize);
+        bytesRead = recv(client_fd, buffer, bufferSize - 1, 0);
+        if (bytesRead <= 0)
+			break;
+        request.append(buffer, bytesRead);
+        if (request.find("\r\n\r\n") != std::string::npos)
+			break;
     }
 
-    printf("Requête reçue :\n%s\n", buffer);
+    if (request.find("POST") != std::string::npos)
+	{
+        size_t header_end = request.find("\r\n\r\n");
+        if (header_end != std::string::npos)
+		{
+            size_t cl_pos = request.find("Content-Length:");
+            if (cl_pos != std::string::npos)
+			{
+                size_t eol = request.find("\r\n", cl_pos);
+                int content_length = atoi(request.substr(cl_pos + 15, eol - (cl_pos + 15)).c_str());
+                size_t available = request.size() - (header_end + 4);
 
-	// std::string request(buffer);
-	return std::string(buffer);
+                while (available < (size_t)content_length) {
+                    memset(buffer, 0, bufferSize);
+                    bytesRead = recv(client_fd, buffer, bufferSize - 1, 0);
+                    if (bytesRead <= 0)
+						break;
+                    request.append(buffer, bytesRead);
+                    available = request.size() - (header_end + 4);
+                }
+                body = request.substr(header_end + 4, content_length);
+            }
+        }
+    }
+
+    raw_request = request;
+    printf("Requête reçue :\n%s\n", request.c_str());
+    return request;
 }
 
 std::string	Request::extract_path(const std::string& raw, const std::string index)
@@ -60,6 +88,11 @@ std::string	Request::extract_path(const std::string& raw, const std::string inde
 	if (path == "/")
 		path = "/" + index;
 	return (path);
+}
+
+std::string Request::get_body() const
+{
+	return (body);
 }
 
 std::string	Request::get_path() const

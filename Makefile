@@ -6,7 +6,7 @@
 #    By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2025/06/20 11:10:34 by ichpakov          #+#    #+#              #
-#    Updated: 2025/07/04 18:58:53 by njeanbou         ###   ########.fr        #
+#    Updated: 2025/07/28 16:18:40 by njeanbou         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -20,6 +20,8 @@ NAME = webserv
 
 SRC_DIR = src
 OBJ_DIR = obj
+FILE_DIR = file
+UPLOADS_DIR = uploads
 
 SRCS = $(wildcard $(SRC_DIR)/*.cpp)
 OBJS = $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(SRCS))
@@ -30,7 +32,7 @@ OBJS = $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(SRCS))
 #//////////////////////////////////////////////////////////////////////////////
 
 CC = c++
-CXXFLAGS = -Wall -Wextra -Werror -std=c++98 -pedantic -g #-fsanitize=address -static-libasan
+CXXFLAGS = -Wall -Wextra -Werror -std=c++98 -pedantic -g -fsanitize=address -static-libasan
 RM = rm -rf
 
 #//////////////////////////////////////////////////////////////////////////////
@@ -51,9 +53,9 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
 # Mandatory rules
 
 clean:
-	$(RM) $(OBJ_DIR)
+	$(RM) $(OBJ_DIR) 
 
 fclean: clean
-	$(RM) $(NAME)
+	$(RM) $(NAME) $(FILE_DIR)/* $(UPLOADS_DIR)/*
 
 re: fclean all
