@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:46:56 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/07/31 07:45:16 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/07/31 16:30:58 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -23,14 +23,18 @@ Response::Response(const std::string& _path, const Request& req, const std::stri
 	error_msg[411] = "Length Required";
 	error_msg[413] = "Payload Too Large";
 	error_msg[414] = "URI Too Long";
+	error_msg[415] = "Unsupported Media Type";
 	error_msg[500] = "Internal Server Error";
 	error_msg[501] = "Not Implemented";
 	error_msg[502] = "Bad Gateway";
 	error_msg[503] = "Service Unavailable";
 	error_msg[504] = "Gateway Timeout";
 
+	std::cout << "Methode : " << req.get_method() << std::endl; 
+
 	if (req.get_method() == "POST")
 	{
+
 		if (access("uploads/", W_OK | X_OK) != 0)
 				error_code = 403;
 		time_t now = time(0);
@@ -74,6 +78,8 @@ Response::Response(const std::string& _path, const Request& req, const std::stri
 		if (access(full_path.c_str(), R_OK) != 0)
 				error_code = 403;
 		content_type = get_content_type(path);
+		//gestion 405
+		std::cout << "Full Path : " << full_path << std::endl; 
 		file.open(full_path.c_str(), std::ios::binary);
 		if (!file.is_open())
 			error_code = 404;
@@ -92,9 +98,9 @@ Response::Response(const std::string& _path, const Request& req, const std::stri
 	}
 	else
 	{
-		std::string error[] = {"400", "403", "405", "411", "413", "414", "501"};
+		std::string error[] = {"400", "403", "405", "411", "413", "414", "415", "501"};
 		
-		for (int i = 0; i < 7; ++i)
+		for (int i = 0; i < 8; ++i)
 		{
 			if (req.get_method() == error[i])
 				error_code = atoi(error[i].c_str());

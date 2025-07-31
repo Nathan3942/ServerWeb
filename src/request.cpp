@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:47:14 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/07/31 07:43:20 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/07/31 18:05:33 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -52,6 +52,44 @@ Request::~Request()
 
 }
 
+void	Request::set_error_code()
+{
+	if (method == "POST")
+	{
+		size_t pos = raw_request.find("Content-Type:");
+		if (pos != std::string::npos)
+		{
+			size_t pos2 = raw_request.find("\r\n", pos);
+			std::string content_type = raw_request.substr(pos + 14, pos2);
+			std::string valid_ct[] = {"application/x-www-form-urlencoded", "multipart/form-data", "application/json", "text/plain", "application/xml"};
+			for (int i = 0; i < 5; ++i)
+			{
+				if (valid_ct[i] == content_type)
+					break;
+				if (i == 4)
+				{
+					method = "415";
+					return ;
+				}
+			}
+			std::cout << "Content type POST : " << content_type << std::endl;
+		}
+		if (raw_request.find("Content-Length") == std::string::npos)
+		{
+			method = "411";
+			return ;
+		}
+		else if (body.size() > MAX_BODY_SIZE)
+		{
+			method = "413";
+			return ;
+		}
+	}
+	if (path.size() > MAX_URI_LENGTH)
+        method = "414";
+	return ;
+}
+
 std::string Request::receive_request(int client_fd)
 {
     const int bufferSize = 8192;
@@ -95,7 +133,6 @@ std::string Request::receive_request(int client_fd)
             }
         }
     }
-
     raw_request = request;
     printf("Requête reçue :\n%s\n", request.c_str());
     return request;

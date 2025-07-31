@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:47:33 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/07/31 06:53:01 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/07/31 16:22:26 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -34,6 +34,9 @@ class Request {
         ~Request();
         std::string receive_request(int client_fd);
         std::string extract_path(const std::string& raw, const std::string index);
+
+        void set_error_code();
+        //int set_get_error();
 
         std::string get_path() const;
         std::string get_raw_request() const;
