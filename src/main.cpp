@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:58:45 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/07/22 12:41:33 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/07/31 06:00:29 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -53,3 +53,8 @@ int main(int ac, char **av)
 //strace -p <PID_DU_SERVEUR>
 
 //sudo lsof -i :8080
+
+/*curl -X PATCH http://localhost:port        # → 405
+curl -X POST http://localhost:port         # → 411 si pas de Content-Length
+curl -X POST -d @bigfile.txt http://...    # → 413
+curl -X FOO http://localhost:port          # → 400*/

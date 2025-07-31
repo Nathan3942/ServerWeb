@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:47:33 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/07/28 15:57:32 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/07/31 06:53:01 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,6 +18,9 @@
 #pragma once
 
 #include "server.hpp"
+
+#define MAX_BODY_SIZE (1 * 1024 * 1024)
+#define MAX_URI_LENGTH 4096
 
 class Request {
     private :

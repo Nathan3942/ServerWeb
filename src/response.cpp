@@ -6,19 +6,33 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:46:56 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/07/28 16:16:59 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/07/31 07:45:16 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "../include/response.hpp"
 
-Response::Response(const std::string& _path, const Request& req, const std::string root, const std::string error) : path(_path), header_sent(false)
+Response::Response(const std::string& _path, const Request& req, const std::string root, const std::string error) : path(_path), header_sent(false), error_code(200), error_sent(false)
 {
 	std::string full_path = root + path;
 	std::streampos size;
+	error_msg.clear();
+	error_msg[400] = "Bad Request";
+	error_msg[403] = "Forbidden";
+	error_msg[405] = "Method Not Allowed";
+	error_msg[411] = "Length Required";
+	error_msg[413] = "Payload Too Large";
+	error_msg[414] = "URI Too Long";
+	error_msg[500] = "Internal Server Error";
+	error_msg[501] = "Not Implemented";
+	error_msg[502] = "Bad Gateway";
+	error_msg[503] = "Service Unavailable";
+	error_msg[504] = "Gateway Timeout";
 
 	if (req.get_method() == "POST")
 	{
+		if (access("uploads/", W_OK | X_OK) != 0)
+				error_code = 403;
 		time_t now = time(0);
 		std::ostringstream oss;
 		oss << "upload_" << now << ".txt";
@@ -27,35 +41,69 @@ Response::Response(const std::string& _path, const Request& req, const std::stri
 
 		if (ofs.is_open())
 		{
+			std::string msg = "201 Created";
+			if (req.get_body() == "")
+				msg = "201 Created";
 			ofs << req.get_body();
 			ofs.close();
-			header = "HTTP/1.1 200 OK\r\n"
-					"Content-Type: text/html\r\n"
-					"Content-Length: 23\r\n"
-					"Connection: close\r\n\r\n"
-					"<h1>Fichier recu</h1>";
+			std::ostringstream oss;
+			oss << "HTTP/1.1 " << msg << "\r\n";
+			oss << "Content-Type: text/html\r\n";
+			oss << "Content-Length: 23\r\n";
+			oss << "Connection: close\r\n\r\n";
+			oss << "<h1>Fichier recu</h1>";
+			header = oss.str();
 		}
 		else
-		{
-			header = "HTTP/1.1 500 Internal Server Error\r\n"
-					"Content-Type: text/html\r\n"
-					"Content-Length: 45\r\n"
-					"Connection: close\r\n\r\n"
-					"<h1>Erreur: impossible d'écrire le fichier</h1>";
-		}
+			error_code = 500;
 	}
 	else if (req.get_method() == "DELETE")
 	{
 		if (std::remove(full_path.c_str()) == 0)
-			header = "HTTP/1.1 200 OK\r\n\r\nFile deleted.";
+			header = "HTTP/1.1 204 No Content\r\n\r\nFile deleted.";
 		else
-			header = "HTTP/1.1 404 Not Found\r\n\r\nFile not found.";
+		{
+			if (access(full_path.c_str(), X_OK) != 0)
+				error_code = 403;
+			else
+				error_code = 404;
+		}	//header = "HTTP/1.1 404 Not Found\r\n\r\nFile not found.";
 	}
-	else
+	else if (req.get_method() == "GET")
 	{
+		if (access(full_path.c_str(), R_OK) != 0)
+				error_code = 403;
 		content_type = get_content_type(path);
 		file.open(full_path.c_str(), std::ios::binary);
 		if (!file.is_open())
+			error_code = 404;
+		else
+		{
+			file.seekg(0, std::ios::end);
+			size = file.tellg();
+			file.seekg(0, std::ios::beg);
+			std::ostringstream oss;
+			oss << "HTTP/1.1 200 OK\r\n";
+			oss << "Content-Type: " << content_type << "\r\n";
+			oss << "Content-Length: " << size << "\r\n";
+			oss << "Connection: close\r\n\r\n"; //close keep-alive
+			header = oss.str();
+		}
+	}
+	else
+	{
+		std::string error[] = {"400", "403", "405", "411", "413", "414", "501"};
+		
+		for (int i = 0; i < 7; ++i)
+		{
+			if (req.get_method() == error[i])
+				error_code = atoi(error[i].c_str());
+		}
+	}
+
+	if (error_code != 200)
+	{
+		if (error_code == 404)
 		{
 			file.open((root + "/" + error).c_str(), std::ios::binary);
 			file.seekg(0, std::ios::end);
@@ -71,14 +119,13 @@ Response::Response(const std::string& _path, const Request& req, const std::stri
 		}
 		else
 		{
-			file.seekg(0, std::ios::end);
-			size = file.tellg();
-			file.seekg(0, std::ios::beg);
+			std::cout << "Error code : " << error_code << std::endl;
+			std::map<int, std::string>::const_iterator it = error_msg.find(error_code);
 			std::ostringstream oss;
-			oss << "HTTP/1.1 200 OK\r\n";
-			oss << "Content-Type: " << content_type << "\r\n";
-			oss << "Content-Length: " << size << "\r\n";
-			oss << "Connection: close\r\n\r\n"; //close keep-alive
+			oss << "HTTP/1.1 " << error_code << " " << it->second << "\r\n";
+			oss << "Content-Type: text/html\r\n";
+			oss << "Content-Length: " << 266 + it->second.length() << "\r\n";
+			oss << "Connection: close\r\n\r\n";
 			header = oss.str();
 		}
 	}
@@ -100,6 +147,19 @@ std::vector<char>	Response::get_next_chunk()
 		buffer.insert(buffer.end(), header.begin(), header.end());
 		return (buffer);
 	}
+	
+	if (!error_sent && error_code != 200 && error_code != 404)
+	{
+		std::cout << "Envoie le body error\n";
+		error_sent = true;
+		std::map<int, std::string>::const_iterator it = error_msg.find(error_code);
+		if (it == error_msg.end())
+			return (buffer);
+		std::string error_body = generate_error_page(error_code, it->second);
+		buffer.insert(buffer.end(), error_body.begin(), error_body.end());
+		return (buffer);
+	}
+
 	if (!file.is_open())
 		return (buffer);
 	
@@ -118,6 +178,20 @@ void	Response::close()
 bool	Response::has_more_data() const
 {
 	return (file && !file.eof());
+}
+
+std::string Response::generate_error_page(int code, const std::string& msg)
+{
+    std::ostringstream oss;
+    oss << "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>Error "
+        << code << "</title><style>body{font-family:sans-serif;text-align:center;padding-top:100px;background:#f7f7f7;color:#444;}h1{font-size:72px;}p{font-size:24px;}</style></head><body><h1>"
+        << code << "</h1><p>" << msg << "</p></body></html>";
+    return oss.str();
+}
+
+int	Response::get_error_code() const
+{
+	return (error_code);
 }
 
 

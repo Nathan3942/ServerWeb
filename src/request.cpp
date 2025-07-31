@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:47:14 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/07/28 16:11:01 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/07/31 07:43:20 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,10 +18,33 @@ Request::Request(int client_fd, const std::string index)
 	if (raw_request.find("DELETE") != std::string::npos)
 		method = "DELETE";
 	else if (raw_request.find("POST") != std::string::npos)
-		method = "POST";
-	else
+    {
+        if (raw_request.find("Content-Length") == std::string::npos)
+    	    method = "411";
+        else if (body.size() > MAX_BODY_SIZE)
+            method = "413";
+        else
+            method = "POST";
+    }
+    else if (raw_request.find("GET") != std::string::npos)
 		method = "GET";
-	path = extract_path(raw_request, index);
+    else
+    {
+        method = "400";
+        std::string not_allowed[] = {"HEAD", "PUT", "CONNECT", "OPTIONS", "TRACE", "PATCH"};
+        for (int i = 0; i < 6; ++i)
+        {
+            if (raw_request.find(not_allowed[i]) != std::string::npos)
+            {
+                std::cout << "Kakaaaaaaa\n"; 
+                method = "501";
+                break;
+            }
+        }
+    }
+    path = extract_path(raw_request, index);
+    if (path.size() > MAX_URI_LENGTH)
+        method = "414";
 }
 
 Request::~Request()
@@ -59,7 +82,8 @@ std::string Request::receive_request(int client_fd)
                 int content_length = atoi(request.substr(cl_pos + 15, eol - (cl_pos + 15)).c_str());
                 size_t available = request.size() - (header_end + 4);
 
-                while (available < (size_t)content_length) {
+                while (available < (size_t)content_length)
+                {
                     memset(buffer, 0, bufferSize);
                     bytesRead = recv(client_fd, buffer, bufferSize - 1, 0);
                     if (bytesRead <= 0)
