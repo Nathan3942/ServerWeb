@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:58:45 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/08/07 13:45:40 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/08/07 18:31:10 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -24,11 +24,14 @@ void	signal_handler(int signal)
 
 int main(int ac, char **av)
 {
-    if (ac < 2)
-        return (1);
+    std::string conf;
+    if (ac == 2)
+        conf = av[1];
+    else
+        conf = "config.conf";
     // Ignore le signal SIGPIPE pour éviter que send sur socket fermée plante le process
     signal(SIGPIPE, SIG_IGN);
-    Server* s = new Server(av[1]);
+    Server* s = new Server(conf.c_str());
 
 	global_server = s;
 

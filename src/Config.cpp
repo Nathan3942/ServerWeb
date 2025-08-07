@@ -111,7 +111,7 @@ int Config::parse_config() {
     keys.push_back("server_name");
     keys.push_back("root");
     keys.push_back("index");
-    keys.push_back("error_page");
+    keys.push_back("error_page 404");
 
     std::ifstream fd(file_name);
     if (!fd.is_open())
@@ -171,7 +171,7 @@ int Config::parse_config() {
         port.push_back(tmp);
     name = server["server_name"];
     root = server["root"];
-    error = server["error_page"];
+    error = server["error_page 404"];
     iss.str(server["index"]);
     iss.clear();
     std::string word;
