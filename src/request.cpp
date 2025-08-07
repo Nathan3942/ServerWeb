@@ -6,13 +6,18 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:47:14 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/07/31 07:43:20 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/08/07 17:00:05 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "../include/request.hpp"
 
-Request::Request(int client_fd, const std::string index)
+Request::Request()
+{
+    
+}
+
+Request::Request(int client_fd, const std::string index, const std::string root)
 {
 	raw_request = receive_request(client_fd);
 	if (raw_request.find("DELETE") != std::string::npos)
@@ -36,7 +41,6 @@ Request::Request(int client_fd, const std::string index)
         {
             if (raw_request.find(not_allowed[i]) != std::string::npos)
             {
-                std::cout << "Kakaaaaaaa\n"; 
                 method = "501";
                 break;
             }
@@ -45,6 +49,16 @@ Request::Request(int client_fd, const std::string index)
     path = extract_path(raw_request, index);
     if (path.size() > MAX_URI_LENGTH)
         method = "414";
+    if (raw_request.find(".php") != std::string::npos)
+        cgi = new CGI(*this, root);
+    else
+        cgi = NULL;
+}
+
+Request::Request(const Request& copy) : raw_request(copy.raw_request), path(copy.path), method(copy.method), body(copy.body)
+{
+    if (raw_request.find("/cgi-bin") != std::string::npos)
+        delete cgi;
 }
 
 Request::~Request()
@@ -132,4 +146,9 @@ std::string	Request::get_raw_request() const
 std::string Request::get_method() const
 {
 	return (method);
+}
+
+CGI *Request::get_cgi() const
+{
+    return (cgi);
 }

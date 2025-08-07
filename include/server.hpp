@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:17:59 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/07/24 18:15:43 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/08/07 13:29:36 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -39,7 +39,8 @@ class Connexion;
 
 class Config;
 
-class Server {
+class Server
+{
     private:
         std::vector<int>    ports;
         std::vector<int>    sockets;

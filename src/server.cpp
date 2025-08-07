@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:18:38 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/07/31 06:06:08 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/08/07 15:19:54 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,6 +15,7 @@
 Server::Server(const char* _conf) : isRunning(false)
 {
 	//change_host();
+	std::cout << "Debut config" << std::endl;
 	conf = new Config(_conf);
 	
 	epoll_fd = epoll_create1(0);
@@ -222,7 +223,7 @@ void Server::start()
 			if (events[i].events & EPOLLIN)
 			{
 				std::cout << "Nouvelle requete:" << std::endl;
-				Request req(fd, conf->get_index()[0]);
+				Request req(fd, conf->get_index()[0], conf->get_root());
 
 				if (req.get_raw_request().empty())
 					conn.set_state(CLOSED);
@@ -313,10 +314,11 @@ void Server::start()
 				close(fd);
 				clients.erase(fd);
 			}
+			
+			// std::cout << "Fin de boucle\n";
 		}
 	}
 }
-
 // ssize_t Server::send_all(Connexion &conn, const char* buf, size_t len)
 // {  
 // 	size_t total_sent = 0;

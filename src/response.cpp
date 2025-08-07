@@ -6,16 +6,17 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:46:56 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/07/31 07:45:16 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/08/07 16:55:31 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "../include/response.hpp"
 
-Response::Response(const std::string& _path, const Request& req, const std::string root, const std::string error) : path(_path), header_sent(false), error_code(200), error_sent(false)
+Response::Response(const std::string& _path, const Request& req, const std::string root, const std::string error) : path(_path), body_cgi(""), header_sent(false), error_code(200), error_sent(false)
 {
 	std::string full_path = root + path;
 	std::streampos size;
+	
 	error_msg.clear();
 	error_msg[400] = "Bad Request";
 	error_msg[403] = "Forbidden";
@@ -29,10 +30,20 @@ Response::Response(const std::string& _path, const Request& req, const std::stri
 	error_msg[503] = "Service Unavailable";
 	error_msg[504] = "Gateway Timeout";
 
-	if (req.get_method() == "POST")
+	if (req.get_cgi())
+	{
+		if (req.get_cgi()->getError() != 0)
+			error_code = req.get_cgi()->getError();
+		else
+			body_cgi = req.get_cgi()->getOutput();
+	}
+
+
+	if (req.get_method() == "POST" && error_code == 200)
 	{
 		if (access("uploads/", W_OK | X_OK) != 0)
 				error_code = 403;
+
 		time_t now = time(0);
 		std::ostringstream oss;
 		oss << "upload_" << now << ".txt";
@@ -69,25 +80,38 @@ Response::Response(const std::string& _path, const Request& req, const std::stri
 				error_code = 404;
 		}	//header = "HTTP/1.1 404 Not Found\r\n\r\nFile not found.";
 	}
-	else if (req.get_method() == "GET")
+	else if (req.get_method() == "GET" && error_code == 200)
 	{
 		if (access(full_path.c_str(), R_OK) != 0)
 				error_code = 403;
-		content_type = get_content_type(path);
-		file.open(full_path.c_str(), std::ios::binary);
-		if (!file.is_open())
-			error_code = 404;
-		else
+		if (req.get_cgi())
 		{
-			file.seekg(0, std::ios::end);
-			size = file.tellg();
-			file.seekg(0, std::ios::beg);
 			std::ostringstream oss;
 			oss << "HTTP/1.1 200 OK\r\n";
-			oss << "Content-Type: " << content_type << "\r\n";
-			oss << "Content-Length: " << size << "\r\n";
-			oss << "Connection: close\r\n\r\n"; //close keep-alive
+			oss << "Content-Type: text/html\r\n";
+			oss << "Content-Length: " << req.get_cgi()->getOutput().size() << "\r\n";
+			oss << "Connection: close\r\n\r\n";
 			header = oss.str();
+			std::cout << "CGI output : " << req.get_cgi()->getOutput() << std::endl;
+		}
+		else
+		{
+			content_type = get_content_type(path);
+			file.open(full_path.c_str(), std::ios::binary);
+			if (!file.is_open())
+				error_code = 404;
+			else
+			{
+				file.seekg(0, std::ios::end);
+				size = file.tellg();
+				file.seekg(0, std::ios::beg);
+				std::ostringstream oss;
+				oss << "HTTP/1.1 200 OK\r\n";
+				oss << "Content-Type: " << content_type << "\r\n";
+				oss << "Content-Length: " << size << "\r\n";
+				oss << "Connection: close\r\n\r\n"; //close keep-alive
+				header = oss.str();
+			}
 		}
 	}
 	else
@@ -105,6 +129,7 @@ Response::Response(const std::string& _path, const Request& req, const std::stri
 	{
 		if (error_code == 404)
 		{
+			std::cout << error << std::endl;
 			file.open((root + "/" + error).c_str(), std::ios::binary);
 			file.seekg(0, std::ios::end);
 			size = file.tellg();
@@ -160,6 +185,13 @@ std::vector<char>	Response::get_next_chunk()
 		return (buffer);
 	}
 
+	if (body_cgi != "")
+	{
+		buffer.insert(buffer.end(), body_cgi.begin(), body_cgi.end());
+		body_cgi = "";
+		return (buffer);
+	}
+
 	if (!file.is_open())
 		return (buffer);
 	
@@ -171,7 +203,7 @@ std::vector<char>	Response::get_next_chunk()
 
 void	Response::close()
 {
-	if (file.is_open())
+	if (file && file.is_open())
 		file.close();
 }
 

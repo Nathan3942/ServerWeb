@@ -18,14 +18,16 @@
 #include <dirent.h>
 #include <sys/stat.h>
 
-class Config {
+class Config
+{
     private :
         const char *file_name;
         std::vector<int> port;
         std::string name;
         std::string root;
-        std::string error;
         std::vector <std::string> index;
+        std::string error;
+        
         // int client_max_body_size;
         // int keepalive_timeout;
     
