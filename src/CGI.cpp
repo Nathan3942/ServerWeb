@@ -63,32 +63,81 @@ void CGI::buildEnv()
     envp.push_back(NULL);
 }
 
+// void CGI::setupAndRun()
+// {
+//     int pipefd[2];
+//     if (pipe(pipefd) < 0)
+//         return;
+//     pid_t pid = fork();
+//     if (pid == 0)
+//     {
+//         dup2(pipefd[1], STDOUT_FILENO);
+//         close(pipefd[0]);
+//         chdir("/www/cgi-bin");
+
+//         char *argv[] = { const_cast<char*>("/usr/bin/php-cgi"), NULL};
+//         execve("/usr/bin/php-cgi", argv, envp.data());
+//         exit(1);
+//     } else
+//     {
+//         close(pipefd[1]);
+
+//         char buffer[4096];
+//         ssize_t bytes;
+//         while ((bytes = read(pipefd[0], buffer, sizeof(buffer))) > 0) {
+//             cgiOutput.append(buffer, bytes);
+//         }
+//         close(pipefd[0]);
+//         waitpid(pid, NULL, 0);
+//     }
+// }
+
 void CGI::setupAndRun()
 {
-    int pipefd[2];
-    if (pipe(pipefd) < 0)
+    int stdout_pipe[2];
+    int stdin_pipe[2];
+    if (pipe(stdout_pipe) < 0 || pipe(stdin_pipe) < 0)
         return;
+
     pid_t pid = fork();
     if (pid == 0)
     {
-        dup2(pipefd[1], STDOUT_FILENO);
-        close(pipefd[0]);
+        // Rediriger stdout vers le pipe d'écriture
+        dup2(stdout_pipe[1], STDOUT_FILENO);
+        // Rediriger stdin vers le pipe de lecture
+        dup2(stdin_pipe[0], STDIN_FILENO);
+
+        // Fermer les descripteurs inutiles
+        close(stdout_pipe[0]);
+        close(stdout_pipe[1]);
+        close(stdin_pipe[0]);
+        close(stdin_pipe[1]);
 
         chdir("/www/cgi-bin");
 
         char *argv[] = { const_cast<char*>("/usr/bin/php-cgi"), NULL};
         execve("/usr/bin/php-cgi", argv, envp.data());
         exit(1);
-    } else
+    }
+    else
     {
-        close(pipefd[1]);
+        // Côté parent
+        close(stdout_pipe[1]); // On lit depuis stdout
+        close(stdin_pipe[0]);  // On écrit vers stdin
 
+        // Envoyer le body vers le CGI via stdin
+        std::string body = request.get_body();
+        if (!body.empty())
+            write(stdin_pipe[1], body.c_str(), body.size());
+        close(stdin_pipe[1]); // Fermer stdin du CGI après écriture
+
+        // Lire la sortie du CGI
         char buffer[4096];
         ssize_t bytes;
-        while ((bytes = read(pipefd[0], buffer, sizeof(buffer))) > 0) {
+        while ((bytes = read(stdout_pipe[0], buffer, sizeof(buffer))) > 0) {
             cgiOutput.append(buffer, bytes);
         }
-        close(pipefd[0]);
+        close(stdout_pipe[0]);
         waitpid(pid, NULL, 0);
     }
 }
@@ -131,33 +180,44 @@ int CGI::getError() const
     return 0;
 }
 
-void    CGI::setup_env_var()
+void CGI::setup_env_var()
 {
 	std::cout << "setup_env_var\n";
 	std::string raw = request.get_raw_request();
-	std::cout << "RAW : " << raw << std::endl;
-	size_t pos_qs = raw.find("?");
+	std::cout << "RAW : " << raw << std::endl << std::endl;
 
-    if (pos_qs != std::string::npos)
+	size_t pos_method = raw.find(request.get_method());
+	size_t pos_http = raw.find(" HTTP/");
+	size_t start_path = pos_method + request.get_method().length() + 1;
+	size_t path_length = pos_http - start_path;
+
+	std::string full_path = raw.substr(start_path, path_length);
+	std::cout << "Full path: " << full_path << std::endl;
+
+	size_t pos_qs = full_path.find("?");
+	if (pos_qs != std::string::npos)
 	{
-		size_t pos_http = raw.find(" HTTP/");
-		query_string = raw.substr(pos_qs + 1, pos_http - (pos_qs + 1));
+		script_name = full_path.substr(0, pos_qs);
+		query_string = full_path.substr(pos_qs + 1);
 	}
 	else
+	{
+		script_name = full_path;
 		query_string = "";
-	size_t pos_met = raw.find(request.get_method());
-	if (pos_met != std::string::npos)
-		script_name = raw.substr(pos_met + request.get_method().size(), pos_qs - (pos_met + request.get_method().size()));
-	else
-		script_name = "";
+	}
+
+	std::cout << "Script Name : " << script_name << std::endl;
+	std::cout << "Query String : " << query_string << std::endl;
 
 	size_t pos_ct = raw.find("Content-Type: ");
 	if (pos_ct != std::string::npos)
 		content_type = raw.substr(pos_ct + 14, raw.find("\r\n", pos_ct) - (pos_ct + 14));
 	else
 		content_type = "";
-	
+
+	std::cout << "Content Type : " << content_type << std::endl;
 }
+
 
 /*
 GET /cgi-bin/hello.py?name=Nathan HTTP/1.1

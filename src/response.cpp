@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:46:56 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/08/07 16:55:31 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/08/07 17:59:08 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -55,7 +55,10 @@ Response::Response(const std::string& _path, const Request& req, const std::stri
 			std::string msg = "201 Created";
 			if (req.get_body() == "")
 				msg = "201 Created";
-			ofs << req.get_body();
+			if (req.get_cgi())
+				ofs << req.get_cgi()->getOutput();
+			else
+				ofs << req.get_body();
 			ofs.close();
 			std::ostringstream oss;
 			oss << "HTTP/1.1 " << msg << "\r\n";
@@ -82,8 +85,8 @@ Response::Response(const std::string& _path, const Request& req, const std::stri
 	}
 	else if (req.get_method() == "GET" && error_code == 200)
 	{
-		if (access(full_path.c_str(), R_OK) != 0)
-				error_code = 403;
+		// if (access(full_path.c_str(), R_OK) != 0)
+		// 		error_code = 403;
 		if (req.get_cgi())
 		{
 			std::ostringstream oss;
@@ -155,6 +158,7 @@ Response::Response(const std::string& _path, const Request& req, const std::stri
 		}
 	}
 
+	delete req.get_cgi();
 	std::cout << "Header : " << header << std::endl;
 }
 

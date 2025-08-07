@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:47:14 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/08/07 17:00:05 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/08/07 17:59:26 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -49,7 +49,7 @@ Request::Request(int client_fd, const std::string index, const std::string root)
     path = extract_path(raw_request, index);
     if (path.size() > MAX_URI_LENGTH)
         method = "414";
-    if (raw_request.find(".php") != std::string::npos)
+    if (raw_request.find(".php") != std::string::npos && raw_request.find("favicon.ico") == std::string::npos)
         cgi = new CGI(*this, root);
     else
         cgi = NULL;
@@ -57,13 +57,13 @@ Request::Request(int client_fd, const std::string index, const std::string root)
 
 Request::Request(const Request& copy) : raw_request(copy.raw_request), path(copy.path), method(copy.method), body(copy.body)
 {
-    if (raw_request.find("/cgi-bin") != std::string::npos)
-        delete cgi;
+    
 }
 
 Request::~Request()
 {
-
+    if (raw_request.find("/cgi-bin") != std::string::npos)
+        delete cgi;
 }
 
 std::string Request::receive_request(int client_fd)
