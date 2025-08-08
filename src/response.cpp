@@ -6,13 +6,13 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:46:56 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/08/07 17:59:08 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/08/08 16:53:59 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "../include/response.hpp"
 
-Response::Response(const std::string& _path, const Request& req, const std::string root, const std::string error) : path(_path), body_cgi(""), header_sent(false), error_code(200), error_sent(false)
+Response::Response(const std::string& _path, Request& req, const std::string root, const std::string error) : path(_path), body_cgi(""), header_sent(false), error_code(200), error_sent(false)
 {
 	std::string full_path = root + path;
 	std::streampos size;
@@ -32,18 +32,13 @@ Response::Response(const std::string& _path, const Request& req, const std::stri
 
 	if (req.get_cgi())
 	{
-		if (req.get_cgi()->getError() != 0)
-			error_code = req.get_cgi()->getError();
-		else
+		if (req.get_error_code() == 200)
 			body_cgi = req.get_cgi()->getOutput();
 	}
 
 
-	if (req.get_method() == "POST" && error_code == 200)
+	if (req.get_method() == "POST" && req.get_error_code() == 200)
 	{
-		if (access("uploads/", W_OK | X_OK) != 0)
-				error_code = 403;
-
 		time_t now = time(0);
 		std::ostringstream oss;
 		oss << "upload_" << now << ".txt";
@@ -69,24 +64,15 @@ Response::Response(const std::string& _path, const Request& req, const std::stri
 			header = oss.str();
 		}
 		else
-			error_code = 500;
+			req.set_error_code(500);
 	}
-	else if (req.get_method() == "DELETE")
+	else if (req.get_method() == "DELETE" && req.get_error_code() == 200)
 	{
 		if (std::remove(full_path.c_str()) == 0)
 			header = "HTTP/1.1 204 No Content\r\n\r\nFile deleted.";
-		else
-		{
-			if (access(full_path.c_str(), X_OK) != 0)
-				error_code = 403;
-			else
-				error_code = 404;
-		}	//header = "HTTP/1.1 404 Not Found\r\n\r\nFile not found.";
 	}
-	else if (req.get_method() == "GET" && error_code == 200)
+	else if (req.get_method() == "GET" && req.get_error_code() == 200)
 	{
-		// if (access(full_path.c_str(), R_OK) != 0)
-		// 		error_code = 403;
 		if (req.get_cgi())
 		{
 			std::ostringstream oss;
@@ -102,7 +88,7 @@ Response::Response(const std::string& _path, const Request& req, const std::stri
 			content_type = get_content_type(path);
 			file.open(full_path.c_str(), std::ios::binary);
 			if (!file.is_open())
-				error_code = 404;
+				req.set_error_code(404);
 			else
 			{
 				file.seekg(0, std::ios::end);
@@ -117,20 +103,10 @@ Response::Response(const std::string& _path, const Request& req, const std::stri
 			}
 		}
 	}
-	else
-	{
-		std::string error[] = {"400", "403", "405", "411", "413", "414", "501"};
-		
-		for (int i = 0; i < 7; ++i)
-		{
-			if (req.get_method() == error[i])
-				error_code = atoi(error[i].c_str());
-		}
-	}
 
-	if (error_code != 200)
+	if (req.get_error_code() != 200)
 	{
-		if (error_code == 404)
+		if (req.get_error_code() == 404)
 		{
 			std::cout << error << std::endl;
 			file.open((root + "/" + error).c_str(), std::ios::binary);
@@ -147,17 +123,17 @@ Response::Response(const std::string& _path, const Request& req, const std::stri
 		}
 		else
 		{
-			std::cout << "Error code : " << error_code << std::endl;
-			std::map<int, std::string>::const_iterator it = error_msg.find(error_code);
+			std::cout << "Error code : " << req.get_error_code() << std::endl;
+			std::map<int, std::string>::const_iterator it = error_msg.find(req.get_error_code());
 			std::ostringstream oss;
-			oss << "HTTP/1.1 " << error_code << " " << it->second << "\r\n";
+			oss << "HTTP/1.1 " << req.get_error_code() << " " << it->second << "\r\n";
 			oss << "Content-Type: text/html\r\n";
 			oss << "Content-Length: " << 266 + it->second.length() << "\r\n";
 			oss << "Connection: close\r\n\r\n";
 			header = oss.str();
 		}
 	}
-
+	error_code = req.get_error_code();
 	delete req.get_cgi();
 	std::cout << "Header : " << header << std::endl;
 }
@@ -179,7 +155,6 @@ std::vector<char>	Response::get_next_chunk()
 	
 	if (!error_sent && error_code != 200 && error_code != 404)
 	{
-		std::cout << "Envoie le body error\n";
 		error_sent = true;
 		std::map<int, std::string>::const_iterator it = error_msg.find(error_code);
 		if (it == error_msg.end())
