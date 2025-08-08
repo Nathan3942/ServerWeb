@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:47:33 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/08/07 15:46:08 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/08/08 16:08:15 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -33,6 +33,9 @@ class Request
         std::string path;
         std::string method;
         std::string body;
+        int error_code;
+
+        void	error_check(std::string root);
 
     public :
         Request();
@@ -46,5 +49,8 @@ class Request
         std::string get_raw_request() const;
         std::string get_method() const;
         std::string get_body() const;
+		int	get_error_code() const;
         CGI *get_cgi() const;
+
+		void	set_error_code(int error);
 };
