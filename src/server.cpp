@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:18:38 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/08/07 15:19:54 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/08/10 17:55:21 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -223,7 +223,7 @@ void Server::start()
 			if (events[i].events & EPOLLIN)
 			{
 				std::cout << "Nouvelle requete:" << std::endl;
-				Request req(fd, conf->get_index()[0], conf->get_root());
+				Request req(fd, conf->get_index()[0], conf->get_root(), conf);
 
 				if (req.get_raw_request().empty())
 					conn.set_state(CLOSED);

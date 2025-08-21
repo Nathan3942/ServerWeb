@@ -209,3 +209,12 @@ std::vector<std::string> Config::get_index() const
     return index;
 }
 
+int Config::get_client_max_body_size() const
+{
+    return (client_max_body_size);
+}
+
+std::map<std::string, location> Config::get_path_rules() const
+{
+    return (r_path);
+}

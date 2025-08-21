@@ -6,14 +6,15 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:46:56 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/08/08 16:53:59 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/08/21 05:25:43 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "../include/response.hpp"
 
-Response::Response(const std::string& _path, Request& req, const std::string root, const std::string error) : path(_path), body_cgi(""), header_sent(false), error_code(200), error_sent(false)
+Response::Response(const std::string& _path, Request& req, const std::string root, const std::string error) : path(_path), body_cgi(""), header_sent(false), error_code(200), error_sent(false), autoindex_sent(false)
 {
+	//voir pour passer path en full_path en argument de la classe pour lavoir dans gnc
 	std::string full_path = root + path;
 	std::streampos size;
 	
@@ -43,9 +44,9 @@ Response::Response(const std::string& _path, Request& req, const std::string roo
 		std::ostringstream oss;
 		oss << "upload_" << now << ".txt";
 		std::string filename = oss.str();
-		std::ofstream ofs(("uploads/" + filename).c_str(), std::ios::binary);
+		std::ofstream ofs((req.get_path_rules()->update_path + filename).c_str(), std::ios::binary);
 
-		if (ofs.is_open())
+		if (ofs.is_open() || req.get_path_rules()->upload_enable == true)
 		{
 			std::string msg = "201 Created";
 			if (req.get_body() == "")
@@ -121,6 +122,27 @@ Response::Response(const std::string& _path, Request& req, const std::string roo
 			oss << "Connection: close\r\n\r\n"; //close keep-alive
 			header = oss.str();
 		}
+		else if (req.get_error_code() == 1)
+		{
+			std::string dirPath = root + req.get_path();
+			DIR *dir = opendir(dirPath.c_str());
+			if (!dir)
+			{
+				error_code = 500; // fallback sur erreur
+			}
+			else
+			{
+				std::ostringstream oss;
+				oss << "HTTP/1.1 200 OK\r\n";
+				oss << "Content-Type: text/html\r\n";
+				// pas de Content-Length mais peut calculer
+				oss << "Connection: close\r\n\r\n";
+				header = oss.str();
+
+				// on garde la main pour get_next_chunk
+				closedir(dir);
+			}
+		}
 		else
 		{
 			std::cout << "Error code : " << req.get_error_code() << std::endl;
@@ -161,6 +183,43 @@ std::vector<char>	Response::get_next_chunk()
 			return (buffer);
 		std::string error_body = generate_error_page(error_code, it->second);
 		buffer.insert(buffer.end(), error_body.begin(), error_body.end());
+		return (buffer);
+	}
+
+	if (!autoindex_sent && error_code == 1)
+	{
+		autoindex_sent = true;
+
+		std::ostringstream body;
+		std::string dirPath = root + path;
+		DIR *dir = opendir(dirPath.c_str());
+		if (!dir)
+			return (buffer); // rien à envoyer
+
+		body << "<!DOCTYPE html>\n<html>\n<head>\n";
+		body << "<meta charset=\"UTF-8\">\n";
+		body << "<title>Index of " << path << "</title>\n";
+		body << "</head>\n<body>\n";
+		body << "<h1>Index of " << path << "</h1>\n";
+		body << "<ul>\n";
+
+		struct dirent *entry;
+		while ((entry = readdir(dir)) != NULL)
+		{
+			std::string name = entry->d_name;
+			if (name == "." || name == "..")
+				continue;
+
+			body << "<li><a href=\"" << path;
+			if (path.back() != '/')
+				body << "/";
+			body << name << "\">" << name << "</a></li>\n";
+		}
+		body << "</ul>\n</body>\n</html>\n";
+		closedir(dir);
+
+		std::string body_str = body.str();
+		buffer.insert(buffer.end(), body_str.begin(), body_str.end());
 		return (buffer);
 	}
 

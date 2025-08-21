@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:47:33 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/08/08 16:08:15 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/08/21 04:38:40 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -19,11 +19,14 @@
 
 #include "CGI.hpp"
 #include "server.hpp"
+#include "Config.hpp"
 
 #define MAX_BODY_SIZE (1 * 1024 * 1024)
 #define MAX_URI_LENGTH 4096
 
 class CGI;
+class Config;
+class location;
 
 class Request
 {
@@ -34,12 +37,14 @@ class Request
         std::string method;
         std::string body;
         int error_code;
+        location *p_rules;
 
-        void	error_check(std::string root);
+        void	error_check(const Config& conf);
+        void    rules_error(location *rules);
 
     public :
         Request();
-        Request(int client_fd, const std::string index, const std::string root);
+        Request(int client_fd, const std::string index, const std::string root, const Config& conf);
         Request(const Request& copy);
         ~Request();
         std::string receive_request(int client_fd);
@@ -51,6 +56,7 @@ class Request
         std::string get_body() const;
 		int	get_error_code() const;
         CGI *get_cgi() const;
+        location *get_path_rules() const;
 
 		void	set_error_code(int error);
 };

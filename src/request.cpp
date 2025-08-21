@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:47:14 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/08/08 17:32:20 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/08/21 05:11:16 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -17,7 +17,7 @@ Request::Request()
     
 }
 
-Request::Request(int client_fd, const std::string index, const std::string root) : error_code(200)
+Request::Request(int client_fd, const std::string index, const std::string root, const Config& conf) : error_code(200)
 {
 	raw_request = receive_request(client_fd);
 	if (raw_request.find("DELETE") != std::string::npos)
@@ -29,7 +29,7 @@ Request::Request(int client_fd, const std::string index, const std::string root)
     else
         method = "400";
     path = extract_path(raw_request, index);
-    error_check(root);
+    error_check(conf);
     if (raw_request.find(".php") != std::string::npos && raw_request.find("favicon.ico") == std::string::npos && error_code == 200)
     {
 		cgi = new CGI(*this, root);
@@ -67,10 +67,38 @@ Location: http://example.com/nouvelle-page.html
 
 308 Permanent Redirect : comme 301 mais préserve la méthode HTTP
 */
-void    Request::error_check(std::string root)
+void    Request::error_check(const Config& conf)
 {
-	std::string fullPath = root + path;
-    if (method == "DELETE")
+	std::string fullPath = conf.get_root() + path;
+	std::map<std::string, location> p_rules = conf.get_path_rules();
+	std::string root = fullPath;
+	location *rules = NULL;
+	
+	while (!root.empty())
+	{
+		std::map<std::string, location>::iterator it = p_rules.find(root);
+		if (it != p_rules.end())
+		{
+			rules = &(it->second);
+			break;
+		}
+		size_t pos_bs = root.find_last_of('/');
+		if (pos_bs == std::string::npos || pos_bs == 0)
+		{
+			if (pos_bs == 0)
+			{
+				it = p_rules.find("/");
+				if (it != p_rules.end())
+					rules = &(it->second);
+			}
+			break;
+		}
+		root = root.substr(0, pos_bs);
+	}
+	if (rules)
+		rules_error(rules);
+	
+	if (method == "DELETE")
     {
 		if (access(fullPath.c_str(), F_OK) != 0)
 		{
@@ -87,9 +115,9 @@ void    Request::error_check(std::string root)
     {
 		if (raw_request.find("Content-Length") == std::string::npos)
     	    error_code = 411;
-        else if (body.size() > MAX_BODY_SIZE)
+        else if (body.size() > conf.get_client_max_body_size())
             error_code = 413;
-		else if (access("uploads/", W_OK | X_OK) != 0)
+		else if (access(rules->upload_store.c_str(), W_OK | X_OK) != 0)
 				error_code = 403;
     }
     else if (method == "GET")
@@ -113,9 +141,10 @@ void    Request::error_check(std::string root)
         {
             if (raw_request.find(not_allowed[i]) != std::string::npos)
             {
-                error_code = 501;
+			    error_code = 501;
                 break;
             }
+	
         }
 		if (error_code != 501)
 			error_code = 400;
@@ -123,6 +152,16 @@ void    Request::error_check(std::string root)
 
 	if (path.size() > MAX_URI_LENGTH)
         error_code = 414;
+}
+
+void	Request::rules_error(location *rules)
+{
+	if (rules->allow_method.find(method) == std::string::npos)
+		error_code = 405;
+	if (rules.upload_enable == false)
+		error_code = 500;
+	if (rules->directory_listing == true)
+		error_code = 1;
 }
 
 std::string Request::receive_request(int client_fd)
@@ -220,4 +259,9 @@ CGI *Request::get_cgi() const
 void	Request::set_error_code(int error)
 {
 	error_code = error;
+}
+
+path_rules	*Request::get_path_rules() const
+{
+	return (p_rules);
 }
