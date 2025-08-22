@@ -6,16 +6,16 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:46:56 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/08/21 05:25:43 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/08/22 03:23:18 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "../include/response.hpp"
 
-Response::Response(const std::string& _path, Request& req, const std::string root, const std::string error) : path(_path), body_cgi(""), header_sent(false), error_code(200), error_sent(false), autoindex_sent(false)
+Response::Response(Request& req, const std::string root, const std::string error) : path(req.get_path()), body_cgi(""), header_sent(false), error_code(200), error_sent(false), autoindex_sent(false)
 {
 	//voir pour passer path en full_path en argument de la classe pour lavoir dans gnc
-	std::string full_path = root + path;
+	// std::string full_path = root + path;
 	std::streampos size;
 	
 	error_msg.clear();
@@ -69,7 +69,7 @@ Response::Response(const std::string& _path, Request& req, const std::string roo
 	}
 	else if (req.get_method() == "DELETE" && req.get_error_code() == 200)
 	{
-		if (std::remove(full_path.c_str()) == 0)
+		if (std::remove(path.c_str()) == 0)
 			header = "HTTP/1.1 204 No Content\r\n\r\nFile deleted.";
 	}
 	else if (req.get_method() == "GET" && req.get_error_code() == 200)
@@ -87,7 +87,7 @@ Response::Response(const std::string& _path, Request& req, const std::string roo
 		else
 		{
 			content_type = get_content_type(path);
-			file.open(full_path.c_str(), std::ios::binary);
+			file.open(path.c_str(), std::ios::binary);
 			if (!file.is_open())
 				req.set_error_code(404);
 			else
@@ -124,7 +124,7 @@ Response::Response(const std::string& _path, Request& req, const std::string roo
 		}
 		else if (req.get_error_code() == 1)
 		{
-			std::string dirPath = root + req.get_path();
+			std::string dirPath = req.get_path();
 			DIR *dir = opendir(dirPath.c_str());
 			if (!dir)
 			{
@@ -191,8 +191,8 @@ std::vector<char>	Response::get_next_chunk()
 		autoindex_sent = true;
 
 		std::ostringstream body;
-		std::string dirPath = root + path;
-		DIR *dir = opendir(dirPath.c_str());
+		// std::string dirPath = root + path;
+		DIR *dir = opendir(path.c_str());
 		if (!dir)
 			return (buffer); // rien à envoyer
 

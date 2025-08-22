@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:47:14 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/08/21 05:11:16 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/08/22 03:23:21 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -28,7 +28,9 @@ Request::Request(int client_fd, const std::string index, const std::string root,
 		method = "GET";
     else
         method = "400";
-    path = extract_path(raw_request, index);
+	path = extract_path(raw_request, index, root);
+	p_rules = extract_location(conf);
+	setup_full_path();
     error_check(conf);
     if (raw_request.find(".php") != std::string::npos && raw_request.find("favicon.ico") == std::string::npos && error_code == 200)
     {
@@ -67,17 +69,18 @@ Location: http://example.com/nouvelle-page.html
 
 308 Permanent Redirect : comme 301 mais préserve la méthode HTTP
 */
-void    Request::error_check(const Config& conf)
+
+location	Request::extract_location(const Config& conf)
 {
 	std::string fullPath = conf.get_root() + path;
-	std::map<std::string, location> p_rules = conf.get_path_rules();
+	std::map<std::string, location> m_rules = conf.get_path_rules();
 	std::string root = fullPath;
 	location *rules = NULL;
 	
 	while (!root.empty())
 	{
-		std::map<std::string, location>::iterator it = p_rules.find(root);
-		if (it != p_rules.end())
+		std::map<std::string, location>::iterator it = m_rules.find(root);
+		if (it != m_rules.end())
 		{
 			rules = &(it->second);
 			break;
@@ -87,16 +90,35 @@ void    Request::error_check(const Config& conf)
 		{
 			if (pos_bs == 0)
 			{
-				it = p_rules.find("/");
-				if (it != p_rules.end())
+				it = m_rules.find("/");
+				if (it != m_rules.end())
 					rules = &(it->second);
 			}
 			break;
 		}
 		root = root.substr(0, pos_bs);
 	}
-	if (rules)
-		rules_error(rules);
+	return (rules);
+}
+
+void	Request::setup_full_path()
+{
+	if (p_rules && p_rules->root)
+	{
+		size_t pos_alias = path.find_first_of(p_rules->loc);
+		path.erase(pos_alias, pos_alias + p_rules->loc.size());
+		path.insert(pos_alias, p_rules->root);
+	}
+	else
+		path.insert(0, root);
+}
+
+void    Request::error_check(const Config& conf)
+{
+	std::string fullPath = conf.get_root() + path;
+	
+	if (p_rules)
+		rules_error(p_rules);
 	
 	if (method == "DELETE")
     {
@@ -117,7 +139,7 @@ void    Request::error_check(const Config& conf)
     	    error_code = 411;
         else if (body.size() > conf.get_client_max_body_size())
             error_code = 413;
-		else if (access(rules->upload_store.c_str(), W_OK | X_OK) != 0)
+		else if (access(p_rules->upload_store.c_str(), W_OK | X_OK) != 0)
 				error_code = 403;
     }
     else if (method == "GET")
@@ -157,10 +179,13 @@ void    Request::error_check(const Config& conf)
 void	Request::rules_error(location *rules)
 {
 	if (rules->allow_method.find(method) == std::string::npos)
+	{
 		error_code = 405;
-	if (rules.upload_enable == false)
+		return ;
+	}
+	if (method == "POST" && rules.upload_enable == false)
 		error_code = 500;
-	if (rules->directory_listing == true)
+	if (method == "GET" && rules->directory_listing == true)
 		error_code = 1;
 }
 
@@ -207,13 +232,12 @@ std::string Request::receive_request(int client_fd)
             }
         }
     }
-
     raw_request = request;
     printf("Requête reçue :\n%s\n", request.c_str());
     return request;
 }
 
-std::string	Request::extract_path(const std::string& raw, const std::string index)
+std::string	Request::extract_path(const std::string& raw, const std::string index, const std::string root)
 {
 	std::string path = "/";
 	
@@ -222,7 +246,7 @@ std::string	Request::extract_path(const std::string& raw, const std::string inde
 	if (pos1 != std::string::npos && pos2 != std::string::npos)
 		path = raw.substr(pos1 + method.length() + 1, pos2 - (method.length() + 1));
 	if (path == "/")
-		path = "/" + index;
+		path = "/" + index; //vector
 	return (path);
 }
 

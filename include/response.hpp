@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:48:05 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/08/21 05:17:40 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/08/22 03:20:18 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -47,7 +47,7 @@ class Response
 		// std::vector<char> http_response;
 		
 	public:
-		Response(const std::string& _path, Request& req, const std::string root, const std::string error);
+		Response(Request& req, const std::string root, const std::string error);
 		~Response();
 
 		bool	has_more_data() const;

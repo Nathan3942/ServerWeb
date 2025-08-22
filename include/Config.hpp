@@ -21,7 +21,9 @@
 #include <sys/stat.h>
 #include <cstring> 
 
-typedef struct {
+typedef struct 
+{
+    std::string loc;
     std::string allow_methods;
     std::string redirHTTP; // status_code + taget_url
     std::string root;
