@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:18:38 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/08/10 17:55:21 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/08/25 18:37:01 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -223,14 +223,14 @@ void Server::start()
 			if (events[i].events & EPOLLIN)
 			{
 				std::cout << "Nouvelle requete:" << std::endl;
-				Request req(fd, conf->get_index()[0], conf->get_root(), conf);
+				Request req(fd, conf->get_index()[0], conf->get_root(), *conf);
 
 				if (req.get_raw_request().empty())
 					conn.set_state(CLOSED);
 				else if (req.get_raw_request().find("\r\n\r\n") != std::string::npos)
 				{
 					std::cout << "fin de fichier" << std::endl;
-					Response* res = new Response(req.get_path(), req, conf->get_root(), conf->get_error());
+					Response* res = new Response(req, conf->get_root(), conf->get_error(404));
 					conn.set_response(res);
 					conn.set_write_buffer(res->get_next_chunk());
 					conn.set_state(WRITING);

@@ -6,18 +6,19 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:46:56 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/08/22 03:23:18 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/08/25 22:45:47 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "../include/response.hpp"
 
-Response::Response(Request& req, const std::string root, const std::string error) : path(req.get_path()), body_cgi(""), header_sent(false), error_code(200), error_sent(false), autoindex_sent(false)
+Response::Response(Request& req, const std::string root, const std::string error) : path(req.get_path()), body_cgi(""), _root(root), header_sent(false), error_code(200), error_sent(false), autoindex_sent(false)
 {
 	//voir pour passer path en full_path en argument de la classe pour lavoir dans gnc
 	// std::string full_path = root + path;
+	// _root = root;
+	std::cout << "Path : " << path << "\nError code " << req.get_error_code() << "\nDir lst " << req.get_dir_lst() << std::endl;
 	std::streampos size;
-	
 	error_msg.clear();
 	error_msg[400] = "Bad Request";
 	error_msg[403] = "Forbidden";
@@ -31,12 +32,8 @@ Response::Response(Request& req, const std::string root, const std::string error
 	error_msg[503] = "Service Unavailable";
 	error_msg[504] = "Gateway Timeout";
 
-	if (req.get_cgi())
-	{
-		if (req.get_error_code() == 200)
-			body_cgi = req.get_cgi()->getOutput();
-	}
-
+	if (req.get_cgi() && req.get_error_code() == 200)
+        body_cgi = req.get_cgi()->getOutput();
 
 	if (req.get_method() == "POST" && req.get_error_code() == 200)
 	{
@@ -44,9 +41,9 @@ Response::Response(Request& req, const std::string root, const std::string error
 		std::ostringstream oss;
 		oss << "upload_" << now << ".txt";
 		std::string filename = oss.str();
-		std::ofstream ofs((req.get_path_rules()->update_path + filename).c_str(), std::ios::binary);
+		std::ofstream ofs((req.get_path_rules().upload_store + filename).c_str(), std::ios::binary);
 
-		if (ofs.is_open() || req.get_path_rules()->upload_enable == true)
+		if (ofs.is_open() || req.get_path_rules().upload_enable == true)
 		{
 			std::string msg = "201 Created";
 			if (req.get_body() == "")
@@ -74,6 +71,7 @@ Response::Response(Request& req, const std::string root, const std::string error
 	}
 	else if (req.get_method() == "GET" && req.get_error_code() == 200)
 	{
+		
 		if (req.get_cgi())
 		{
 			std::ostringstream oss;
@@ -107,7 +105,7 @@ Response::Response(Request& req, const std::string root, const std::string error
 
 	if (req.get_error_code() != 200)
 	{
-		if (req.get_error_code() == 404)
+		if (req.get_error_code() == 404 && req.get_dir_lst() == false)
 		{
 			std::cout << error << std::endl;
 			file.open((root + "/" + error).c_str(), std::ios::binary);
@@ -122,13 +120,22 @@ Response::Response(Request& req, const std::string root, const std::string error
 			oss << "Connection: close\r\n\r\n"; //close keep-alive
 			header = oss.str();
 		}
-		else if (req.get_error_code() == 1)
+		else if (req.get_dir_lst())
 		{
+			std::cout << "Header dir lst\n";
 			std::string dirPath = req.get_path();
+
+			// Si path correspond à un fichier, prendre le parent
+			size_t lastSlash = dirPath.find_last_of('/');
+			if (lastSlash != std::string::npos)
+				dirPath = dirPath.substr(0, lastSlash + 1);
 			DIR *dir = opendir(dirPath.c_str());
 			if (!dir)
 			{
+				std::cout << "Dir lst error 500\n";
 				error_code = 500; // fallback sur erreur
+				req.set_error_code(500);
+				req.set_dir_lst(false);
 			}
 			else
 			{
@@ -143,7 +150,7 @@ Response::Response(Request& req, const std::string root, const std::string error
 				closedir(dir);
 			}
 		}
-		else
+		if (error_code != 404 && req.get_dir_lst() == false)
 		{
 			std::cout << "Error code : " << req.get_error_code() << std::endl;
 			std::map<int, std::string>::const_iterator it = error_msg.find(req.get_error_code());
@@ -156,8 +163,11 @@ Response::Response(Request& req, const std::string root, const std::string error
 		}
 	}
 	error_code = req.get_error_code();
-	delete req.get_cgi();
+	if (error_code == 404 && req.get_dir_lst() == true)
+		error_code = 1;
 	std::cout << "Header : " << header << std::endl;
+
+	std::cout << "Error code : " << error_code << std::endl;
 }
 
 Response::~Response()
@@ -175,7 +185,7 @@ std::vector<char>	Response::get_next_chunk()
 		return (buffer);
 	}
 	
-	if (!error_sent && error_code != 200 && error_code != 404)
+	if (!error_sent && error_code != 200 && error_code != 404 && error_code != 1)
 	{
 		error_sent = true;
 		std::map<int, std::string>::const_iterator it = error_msg.find(error_code);
@@ -188,19 +198,39 @@ std::vector<char>	Response::get_next_chunk()
 
 	if (!autoindex_sent && error_code == 1)
 	{
+		std::cout << "Rentre dans le autoindex\n";
 		autoindex_sent = true;
-
 		std::ostringstream body;
-		// std::string dirPath = root + path;
-		DIR *dir = opendir(path.c_str());
+
+		// Si path correspond à un fichier, prendre le dossier parent
+		std::string dirPath = path;
+		size_t lastSlash = dirPath.find_last_of('/');
+		if (lastSlash != std::string::npos)
+			dirPath = dirPath.substr(0, lastSlash + 1); // garde le slash final
+		std::cout << "Dirpath : " << dirPath << std::endl;
+		DIR *dir = opendir(dirPath.c_str());
 		if (!dir)
-			return (buffer); // rien à envoyer
+		{
+			std::cout << "Error!!!\n";
+			return buffer; // rien à envoyer si dossier introuvable
+		}
+
+		// chemin public = path sans le root
+		std::string publicPath;
+		if (dirPath.find(_root) == 0)
+			publicPath = dirPath.substr(_root.size()); // enlève le root
+		else
+			publicPath = dirPath;
+
+		// s'assurer que ça finit par un slash
+		if (!publicPath.empty() && publicPath[publicPath.size() - 1] != '/')
+    		publicPath += '/';
 
 		body << "<!DOCTYPE html>\n<html>\n<head>\n";
 		body << "<meta charset=\"UTF-8\">\n";
-		body << "<title>Index of " << path << "</title>\n";
+		body << "<title>Index of " << publicPath << "</title>\n";
 		body << "</head>\n<body>\n";
-		body << "<h1>Index of " << path << "</h1>\n";
+		body << "<h1>Index of " << publicPath << "</h1>\n";
 		body << "<ul>\n";
 
 		struct dirent *entry;
@@ -210,17 +240,16 @@ std::vector<char>	Response::get_next_chunk()
 			if (name == "." || name == "..")
 				continue;
 
-			body << "<li><a href=\"" << path;
-			if (path.back() != '/')
-				body << "/";
-			body << name << "\">" << name << "</a></li>\n";
+			// lien public : juste le nom du fichier, pas le root
+			body << "<li><a href=\"/" << name << "\">" << name << "</a></li>\n";
 		}
 		body << "</ul>\n</body>\n</html>\n";
+
 		closedir(dir);
 
 		std::string body_str = body.str();
 		buffer.insert(buffer.end(), body_str.begin(), body_str.end());
-		return (buffer);
+		return buffer;
 	}
 
 	if (body_cgi != "")

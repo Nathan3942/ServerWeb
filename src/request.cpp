@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:47:14 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/08/22 03:23:21 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/08/25 22:40:04 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -17,7 +17,7 @@ Request::Request()
     
 }
 
-Request::Request(int client_fd, const std::string index, const std::string root, const Config& conf) : error_code(200)
+Request::Request(int client_fd, const std::string index, const std::string root, const Config& conf) : cgi(NULL), error_code(200), dir_lst(false)
 {
 	raw_request = receive_request(client_fd);
 	if (raw_request.find("DELETE") != std::string::npos)
@@ -27,10 +27,13 @@ Request::Request(int client_fd, const std::string index, const std::string root,
     else if (raw_request.find("GET") != std::string::npos)
 		method = "GET";
     else
+	{
         method = "400";
-	path = extract_path(raw_request, index, root);
+	}
+	path = extract_path(raw_request, index);
 	p_rules = extract_location(conf);
-	setup_full_path();
+	setup_full_path(root);
+	std::cout << "Path " << path << "\nMethode " << method << std::endl;
     error_check(conf);
     if (raw_request.find(".php") != std::string::npos && raw_request.find("favicon.ico") == std::string::npos && error_code == 200)
     {
@@ -38,6 +41,7 @@ Request::Request(int client_fd, const std::string index, const std::string root,
 	}
 	if (cgi)
 	{
+		
 		if (cgi->getError() != 0)
 			error_code = cgi->getError();
 	}
@@ -70,19 +74,19 @@ Location: http://example.com/nouvelle-page.html
 308 Permanent Redirect : comme 301 mais préserve la méthode HTTP
 */
 
-location	Request::extract_location(const Config& conf)
+t_location	Request::extract_location(const Config& conf)
 {
 	std::string fullPath = conf.get_root() + path;
-	std::map<std::string, location> m_rules = conf.get_path_rules();
-	std::string root = fullPath;
-	location *rules = NULL;
-	
+	std::map<std::string, t_location> m_rules = conf.get_path_rules();
+	std::string root = path;
+	t_location rules;
+	std::cout << "Path " << path << " Fullpath " << fullPath << std::endl;
 	while (!root.empty())
 	{
-		std::map<std::string, location>::iterator it = m_rules.find(root);
+		std::map<std::string, t_location>::iterator it = m_rules.find(root);
 		if (it != m_rules.end())
 		{
-			rules = &(it->second);
+			rules = it->second;
 			break;
 		}
 		size_t pos_bs = root.find_last_of('/');
@@ -92,7 +96,7 @@ location	Request::extract_location(const Config& conf)
 			{
 				it = m_rules.find("/");
 				if (it != m_rules.end())
-					rules = &(it->second);
+					rules = it->second;
 			}
 			break;
 		}
@@ -101,23 +105,28 @@ location	Request::extract_location(const Config& conf)
 	return (rules);
 }
 
-void	Request::setup_full_path()
+void Request::setup_full_path(const std::string root)
 {
-	if (p_rules && p_rules->root)
-	{
-		size_t pos_alias = path.find_first_of(p_rules->loc);
-		path.erase(pos_alias, pos_alias + p_rules->loc.size());
-		path.insert(pos_alias, p_rules->root);
-	}
-	else
-		path.insert(0, root);
+    if (!p_rules.loc.empty())
+    {
+        size_t pos_alias = path.find(p_rules.loc);
+        if (pos_alias != std::string::npos)
+        {
+            path.erase(pos_alias, p_rules.loc.size() - 1);
+            path.insert(pos_alias, p_rules.root);
+        }
+    }
+    else
+    {
+        path.insert(0, root);
+    }
 }
 
 void    Request::error_check(const Config& conf)
 {
-	std::string fullPath = conf.get_root() + path;
+	std::string fullPath = path;
 	
-	if (p_rules)
+	if (!p_rules.loc.empty())
 		rules_error(p_rules);
 	
 	if (method == "DELETE")
@@ -137,9 +146,9 @@ void    Request::error_check(const Config& conf)
     {
 		if (raw_request.find("Content-Length") == std::string::npos)
     	    error_code = 411;
-        else if (body.size() > conf.get_client_max_body_size())
+        else if (body.size() > static_cast<size_t>(conf.get_client_max_body_size()))
             error_code = 413;
-		else if (access(p_rules->upload_store.c_str(), W_OK | X_OK) != 0)
+		else if (access(p_rules.upload_store.c_str(), W_OK | X_OK) != 0)
 				error_code = 403;
     }
     else if (method == "GET")
@@ -176,17 +185,18 @@ void    Request::error_check(const Config& conf)
         error_code = 414;
 }
 
-void	Request::rules_error(location *rules)
+void	Request::rules_error(t_location rules)
 {
-	if (rules->allow_method.find(method) == std::string::npos)
+	std::cout << "Rules path " << rules.loc << std::endl;
+	if (rules.allow_methods.find(method) == std::string::npos)
 	{
 		error_code = 405;
 		return ;
 	}
 	if (method == "POST" && rules.upload_enable == false)
 		error_code = 500;
-	if (method == "GET" && rules->directory_listing == true)
-		error_code = 1;
+	if (method == "GET" && rules.directory_listing == true)
+		dir_lst = true;
 }
 
 std::string Request::receive_request(int client_fd)
@@ -237,7 +247,7 @@ std::string Request::receive_request(int client_fd)
     return request;
 }
 
-std::string	Request::extract_path(const std::string& raw, const std::string index, const std::string root)
+std::string	Request::extract_path(const std::string& raw, const std::string index)
 {
 	std::string path = "/";
 	
@@ -247,6 +257,7 @@ std::string	Request::extract_path(const std::string& raw, const std::string inde
 		path = raw.substr(pos1 + method.length() + 1, pos2 - (method.length() + 1));
 	if (path == "/")
 		path = "/" + index; //vector
+	std::cout << "index " << index << std::endl;
 	return (path);
 }
 
@@ -285,7 +296,17 @@ void	Request::set_error_code(int error)
 	error_code = error;
 }
 
-path_rules	*Request::get_path_rules() const
+void	Request::set_dir_lst(bool set)
+{
+	dir_lst = set;
+}
+
+t_location	Request::get_path_rules() const
 {
 	return (p_rules);
+}
+
+bool    Request::get_dir_lst() const
+{
+	return (dir_lst);
 }

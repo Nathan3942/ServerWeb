@@ -15,24 +15,13 @@
 #pragma once
 
 #include "server.hpp"
+#include "location.hpp"
 #include <vector>
 #include <map>
 #include <dirent.h>
 #include <sys/stat.h>
-#include <cstring> 
+#include <cstring>
 
-typedef struct 
-{
-    std::string loc;
-    std::string allow_methods;
-    std::string redirHTTP; // status_code + taget_url
-    std::string root;
-    std::string upload_store;
-    bool directory_listing;
-    bool upload_enable;
-    bool cgi_extension;
-    std::vector<std::string> index;
-}   location;
 
 class Config {
     private :
@@ -43,26 +32,26 @@ class Config {
         std::vector <std::string> index; //index list in ascending order of importance
         int client_max_body_size;
         std::map<int, std::string> error_page; // int is error code and string is associate file
-        std::map<std::string, location> r_path; //name of location + struct location
+        std::map<std::string, t_location> r_path; //name of location + struct location
 
-        bool copy_file(const char* src, const char* dst) const;
-        void copy_all_files(const char* srcDir, const char* dstDir) const;
-        void root_checker(const char* srcDdir, const char* dstDir);
-        void set_default(int overwrite);
+        // bool copy_file(const char* src, const char* dst) const;
+        // void copy_all_files(const char* srcDir, const char* dstDir) const;
+        // void root_checker(const char* srcDdir, const char* dstDir);
+        // void set_default(int overwrite);
         
     public :
         Config(const char *str);
         ~Config();
 
-        int parse_config();
+        // int parse_config();
 
         std::vector<int> get_port() const; 
         std::string get_name() const;
         std::string get_root() const;
-        std::string get_error() const;
+        std::string get_error(int code) const;
         std::vector<std::string> get_index() const;
         int	get_client_max_body_size() const;
-		std::map<std::string, location> get_path_rules() const;
+		std::map<std::string, t_location> get_path_rules() const;
 };
 
 /* CONSIGNES :
