@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:46:56 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/08/25 22:45:47 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/09/01 17:27:16 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -41,7 +41,7 @@ Response::Response(Request& req, const std::string root, const std::string error
 		std::ostringstream oss;
 		oss << "upload_" << now << ".txt";
 		std::string filename = oss.str();
-		std::ofstream ofs((req.get_path_rules().upload_store + filename).c_str(), std::ios::binary);
+		std::ofstream ofs((req.get_path_rules().upload_store + "/" + filename).c_str(), std::ios::binary);
 
 		if (ofs.is_open() || req.get_path_rules().upload_enable == true)
 		{
@@ -71,8 +71,11 @@ Response::Response(Request& req, const std::string root, const std::string error
 	}
 	else if (req.get_method() == "GET" && req.get_error_code() == 200)
 	{
-		
-		if (req.get_cgi())
+		if (req.get_path_rules().redirHTTP != "")
+		{
+			header = setRedir(req.get_path_rules().redirCode, req.get_path_rules().redirHTTP);
+		}
+		else if (req.get_cgi())
 		{
 			std::ostringstream oss;
 			oss << "HTTP/1.1 200 OK\r\n";
@@ -150,7 +153,7 @@ Response::Response(Request& req, const std::string root, const std::string error
 				closedir(dir);
 			}
 		}
-		if (error_code != 404 && req.get_dir_lst() == false)
+		if (error_code != 404 && req.get_path_rules().directory_listing == false)
 		{
 			std::cout << "Error code : " << req.get_error_code() << std::endl;
 			std::map<int, std::string>::const_iterator it = error_msg.find(req.get_error_code());
@@ -163,7 +166,7 @@ Response::Response(Request& req, const std::string root, const std::string error
 		}
 	}
 	error_code = req.get_error_code();
-	if (error_code == 404 && req.get_dir_lst() == true)
+	if (error_code == 404 && req.get_path_rules().directory_listing == true)
 		error_code = 1;
 	std::cout << "Header : " << header << std::endl;
 
@@ -291,6 +294,46 @@ std::string Response::generate_error_page(int code, const std::string& msg)
 int	Response::get_error_code() const
 {
 	return (error_code);
+}
+
+static std::string toString(size_t n)
+{
+        std::ostringstream oss;
+        oss << n;
+        return oss.str();
+}
+
+std::string	Response::setRedir(int code, const std::string& location)
+{
+	std::string status_line;
+	std::ostringstream oss;
+
+	if (code == 301)
+    	status_line = "HTTP/1.1 301 Moved Permanently\r\n";
+	else if (code == 302)
+        status_line = "HTTP/1.1 302 Found\r\n";
+    else if (code == 303)
+        status_line = "HTTP/1.1 303 See Other\r\n";
+    else if (code == 307)
+        status_line = "HTTP/1.1 307 Temporary Redirect\r\n";
+    else if (code == 308)
+        status_line = "HTTP/1.1 308 Permanent Redirect\r\n";
+    else
+	{
+        status_line = "HTTP/1.1 302 Found\r\n";
+	}
+	std::string header = "Location: " + location + "\r\n";
+	header += "Content-Type: text/html\r\n";
+
+	oss << "<html><body><h1>" << code << " Redirect</h1>\n";
+    oss << "<p>Resource moved to <a href=\"" << location << "\">"
+        << location << "</a></p></body></html>";
+
+	std::string body = oss.str();
+
+	header += "Content-Length: " + toString(body.size()) + "\r\n";
+	header += "\r\n";
+	return (status_line + header + body);
 }
 
 

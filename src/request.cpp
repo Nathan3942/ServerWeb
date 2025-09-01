@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:47:14 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/08/25 22:40:04 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/08/26 18:18:37 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -32,7 +32,7 @@ Request::Request(int client_fd, const std::string index, const std::string root,
 	}
 	path = extract_path(raw_request, index);
 	p_rules = extract_location(conf);
-	setup_full_path(root);
+	setup_full_path(root, conf);
 	std::cout << "Path " << path << "\nMethode " << method << std::endl;
     error_check(conf);
     if (raw_request.find(".php") != std::string::npos && raw_request.find("favicon.ico") == std::string::npos && error_code == 200)
@@ -105,10 +105,21 @@ t_location	Request::extract_location(const Config& conf)
 	return (rules);
 }
 
-void Request::setup_full_path(const std::string root)
+void Request::setup_full_path(const std::string root, const Config& conf)
 {
     if (!p_rules.loc.empty())
     {
+		if (path == "/")
+		{
+			for (size_t i = 0; i < p_rules.index.size(); ++i)
+			{
+				if (p_rules.index[i] != "")
+				{
+					path = path + p_rules.index[i];
+					break;
+				}
+			}
+		}
         size_t pos_alias = path.find(p_rules.loc);
         if (pos_alias != std::string::npos)
         {
@@ -118,6 +129,17 @@ void Request::setup_full_path(const std::string root)
     }
     else
     {
+		if (path == "/")
+		{
+			for (size_t i = 0; i < conf.get_index().size(); ++i)
+			{
+				if (conf.get_index()[i] != "")
+				{
+					path = path + conf.get_index()[i];
+					break;
+				}
+			}
+		}
         path.insert(0, root);
     }
 }
@@ -255,8 +277,11 @@ std::string	Request::extract_path(const std::string& raw, const std::string inde
 	size_t pos2 = raw.find(" HTTP/");
 	if (pos1 != std::string::npos && pos2 != std::string::npos)
 		path = raw.substr(pos1 + method.length() + 1, pos2 - (method.length() + 1));
-	if (path == "/")
-		path = "/" + index; //vector
+	// if (path == "/")
+	// {
+		
+	// 	path = "/" + index; //vector
+	// }
 	std::cout << "index " << index << std::endl;
 	return (path);
 }

@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:48:05 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/08/25 22:25:30 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/09/01 17:17:10 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -60,6 +60,8 @@ class Response
 		std::string	read_file(const std::string& path);
 		std::string get_content_type(const std::string& path);
 		std::vector<char> build_reponse(const std::string& body);
+
+		std::string	setRedir(int code, const std::string& location);
 
 		// const std::vector<char>& get_response() const;
 };

@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:47:33 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/08/25 22:39:12 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/08/26 18:17:09 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -51,7 +51,7 @@ class Request
         std::string receive_request(int client_fd);
         std::string extract_path(const std::string& raw, const std::string index);
         t_location    extract_location(const Config& conf);
-        void    setup_full_path(const std::string root);
+        void    setup_full_path(const std::string root, const Config& conf);
 
         std::string get_path() const;
         std::string get_raw_request() const;

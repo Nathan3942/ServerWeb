@@ -42,11 +42,12 @@ Config::Config(const char *str) {
     t_location loc_root;
     loc_root.loc = "/";
     loc_root.allow_methods = "GET POST";
-    loc_root.redirHTTP = ""; // pas de redirection
+    loc_root.redirCode = 301;
+    loc_root.redirHTTP = "file/"; // pas de redirection
     loc_root.root = "./www";
     loc_root.upload_store = "./uploads";
     loc_root.directory_listing = true;
-    loc_root.upload_enable = true;
+    loc_root.upload_enable = false;
     loc_root.cgi_extension = false;
     loc_root.index.push_back("index.html");
     loc_root.index.push_back("index.php");
