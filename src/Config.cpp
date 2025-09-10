@@ -42,8 +42,8 @@ Config::Config(const char *str) {
     t_location loc_root;
     loc_root.loc = "/";
     loc_root.allow_methods = "GET POST";
-    loc_root.redirCode = 301;
-    loc_root.redirHTTP = "file/"; // pas de redirection
+    loc_root.redirCode = 302;
+    loc_root.redirHTTP = "/test/"; // pas de redirection
     loc_root.root = "./www";
     loc_root.upload_store = "./uploads";
     loc_root.directory_listing = true;
@@ -257,12 +257,17 @@ std::string Config::get_root() const
     return root;
 }
 
-std::string Config::get_error(int code) const
+std::string Config::get_error_code(int code) const
 {
     std::map<int, std::string>::const_iterator it = error_page.find(code);
     if (it != error_page.end())
         return it->second;
     return "";
+}
+
+std::map<int, std::string>  Config::get_error() const
+{
+    return (error_page);
 }
 
 std::vector<std::string> Config::get_index() const

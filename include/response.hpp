@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:48:05 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/09/01 17:17:10 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/09/10 18:13:54 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -37,10 +37,12 @@ class Response
 		std::string	content_type;
 		std::string body_cgi;
 		std::string _root;
+		int	error_status;
+		int error_code;
 		bool	header_sent;
-		int	error_code;
 		bool	error_sent;
 		bool	autoindex_sent;
+		bool	redir;
 		
 		std::map<int, std::string> error_msg;
 
@@ -48,12 +50,12 @@ class Response
 		// std::vector<char> http_response;
 		
 	public:
-		Response(Request& req, const std::string root, const std::string error);
+		Response(Request& req, const std::string root, const std::map<int, std::string> error_page);
 		~Response();
 
 		bool	has_more_data() const;
 		std::vector<char> get_next_chunk();
-		int	get_error_code() const;
+		int	get_error_status() const;
 		void	close();
 		std::string generate_error_page(int code, const std::string& msg);
 
@@ -61,6 +63,7 @@ class Response
 		std::string get_content_type(const std::string& path);
 		std::vector<char> build_reponse(const std::string& body);
 
+		int	set_error_gestion(Request& req, std::map<int, std::string> error_page);
 		std::string	setRedir(int code, const std::string& location);
 
 		// const std::vector<char>& get_response() const;

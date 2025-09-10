@@ -48,7 +48,8 @@ class Config {
         std::vector<int> get_port() const; 
         std::string get_name() const;
         std::string get_root() const;
-        std::string get_error(int code) const;
+        std::string get_error_code(int code) const;
+        std::map<int, std::string> get_error() const;
         std::vector<std::string> get_index() const;
         int	get_client_max_body_size() const;
 		std::map<std::string, t_location> get_path_rules() const;
