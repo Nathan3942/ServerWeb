@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:48:05 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/09/10 18:13:54 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/09/25 13:19:10 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -50,7 +50,7 @@ class Response
 		// std::vector<char> http_response;
 		
 	public:
-		Response(Request& req, const std::string root, const std::map<int, std::string> error_page);
+		Response(Request& req);
 		~Response();
 
 		bool	has_more_data() const;
@@ -63,7 +63,7 @@ class Response
 		std::string get_content_type(const std::string& path);
 		std::vector<char> build_reponse(const std::string& body);
 
-		int	set_error_gestion(Request& req, std::map<int, std::string> error_page);
+		int	set_error_gestion(Request& req);
 		std::string	setRedir(int code, const std::string& location);
 
 		// const std::vector<char>& get_response() const;

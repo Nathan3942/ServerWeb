@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:17:59 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/08/10 23:24:11 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/09/25 11:46:42 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,6 +18,13 @@
 #include "response.hpp"
 #include "connexion.hpp"
 #include "Config.hpp"
+
+#include <sys/stat.h>
+#include <sstream>
+#include <algorithm>
+#include <dirent.h>
+#include <sys/wait.h>
+#include <limits>
 
 #include <iostream>
 #include <string>

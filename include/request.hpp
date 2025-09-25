@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:47:33 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/08/26 18:17:09 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/09/25 13:33:46 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -20,12 +20,14 @@
 #include "CGI.hpp"
 // #include "server.hpp"
 #include "location.hpp"
+#include "ServBlock.hpp"
 
 #define MAX_BODY_SIZE (1 * 1024 * 1024)
 #define MAX_URI_LENGTH 4096
 
 class CGI;
 class Config;
+class ServBlock;
 // struct t_location;
 
 class Request
@@ -37,21 +39,26 @@ class Request
         std::string method;
         std::string body;
         int error_code;
+        ServBlock   *s_block;
         t_location p_rules;
         bool    dir_lst;
 
-        void	error_check(const Config& conf);
+        void	error_check();
         void    rules_error(t_location rules);
 
     public :
         Request();
-        Request(int client_fd, const std::string index, const std::string root, const Config& conf);
+        Request(int client_fd, Config& conf);
         Request(const Request& copy);
         ~Request();
         std::string receive_request(int client_fd);
-        std::string extract_path(const std::string& raw, const std::string index);
-        t_location    extract_location(const Config& conf);
-        void    setup_full_path(const std::string root, const Config& conf);
+        ServBlock   *extract_block(Config& conf);
+        int extract_port();
+        std::string extract_path(const std::string& raw);
+        t_location    extract_location();
+        void    setup_full_path();
+
+
 
         std::string get_path() const;
         std::string get_raw_request() const;
@@ -60,7 +67,10 @@ class Request
 		int	get_error_code() const;
         CGI *get_cgi() const;
         t_location get_path_rules() const;
+        ServBlock   get_serv_block() const;
         bool    get_dir_lst() const;
+
+
 
 		void	set_error_code(int error);
         void    set_dir_lst(bool set);

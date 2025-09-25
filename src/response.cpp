@@ -5,14 +5,14 @@
 /*                                                    +:+ +:+         +:+     */
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2025/06/20 11:46:56 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/09/10 18:21:10 by njeanbou         ###   ########.fr       */
+/*   Created: 2025/06/20 11:46:56 by njeanbou          #+#    #+#             */
+/*   Updated: 2025/09/25 15:41:13 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "../include/response.hpp"
 
-Response::Response(Request& req, const std::string root, std::map<int, std::string> error_page) : path(req.get_path()), body_cgi(""), _root(root), error_status(0), error_code(200), header_sent(false), error_sent(false), autoindex_sent(false), redir(false)
+Response::Response(Request& req) : path(req.get_path()), body_cgi(""), _root(req.get_serv_block().get_root()), error_status(0), error_code(200), header_sent(false), error_sent(false), autoindex_sent(false), redir(false)
 {
 	//voir pour passer path en full_path en argument de la classe pour lavoir dans gnc
 	// std::string full_path = root + path;
@@ -133,68 +133,89 @@ Response::Response(Request& req, const std::string root, std::map<int, std::stri
 
 	if (req.get_error_code() != 200)
 	{
-		error_status = set_error_gestion(req, error_page);
-
-		switch (error_status)
+		bool done = false;
+		while (!done)
 		{
-			case 1:
-			{
-				std::cout << "Header dir lst\n";
-				std::string dirPath = req.get_path();
+			std::cout << "Boucle done\n";
+			error_status = set_error_gestion(req);
 
-				// Si path correspond à un fichier, prendre le parent
-				size_t lastSlash = dirPath.find_last_of('/');
-				if (lastSlash != std::string::npos)
-					dirPath = dirPath.substr(0, lastSlash + 1);
-				DIR *dir = opendir(dirPath.c_str());
-				if (!dir)
+			switch (error_status)
+			{
+				case 1:
 				{
-					std::cout << "Dir lst error 500\n";
-					req.set_error_code(500);
-					req.set_dir_lst(false);
+					std::cout << "Header dir lst\n";
+					std::string dirPath = req.get_path();
+
+					// Si path correspond à un fichier, prendre le parent
+					size_t lastSlash = dirPath.find_last_of('/');
+					if (lastSlash != std::string::npos)
+						dirPath = dirPath.substr(0, lastSlash + 1);
+					DIR *dir = opendir(dirPath.c_str());
+					if (!dir)
+					{
+						std::cout << "Dir lst error 500\n";
+						req.set_error_code(500);
+						req.set_dir_lst(false);
+					}
+					else
+					{
+						std::ostringstream oss;
+						oss << "HTTP/1.1 200 OK\r\n";
+						oss << "Content-Type: text/html\r\n";
+						// pas de Content-Length mais peut calculer
+						oss << "Connection: close\r\n\r\n";
+						header = oss.str();
+						// on garde la main pour get_next_chunk
+						closedir(dir);
+						done = true;
+					}
+					break;
 				}
-				else
+				case 2:
 				{
+					std::cout << "Error open\n";
+					const std::map<int, std::string>& error_pages = req.get_serv_block().get_error_page();
+    				std::map<int, std::string>::const_iterator it = error_pages.find(req.get_error_code());
+					if (it != error_pages.end())
+					{
+						std::cout << "Error page " << it->second << std::endl;
+						file.open((req.get_serv_block().get_root() + "/" + it->second).c_str(), std::ios::binary);
+						if (!file.is_open())
+						{
+							std::cout << "Error ouv error file\n";
+							error_status = 4;
+							break;
+						}
+						file.seekg(0, std::ios::end);
+						size = file.tellg();
+						file.seekg(0, std::ios::beg);
+						content_type = get_content_type("/" + it->second);
+						std::ostringstream oss;
+						oss << "HTTP/1.1 " << req.get_error_code() << " " << error_msg[req.get_error_code()] << "\r\n";
+						oss << "Content-Type: " << content_type << "\r\n";
+						oss << "Content-Length: " << size << "\r\n";
+						oss << "Connection: close\r\n\r\n"; //close keep-alive
+						header = oss.str();
+						done = true;
+					}
+					error_status = 4;
+					break;
+				}
+				case 3:
+				{
+					std::cout << "Error code creat : " << req.get_error_code() << std::endl;
+					std::map<int, std::string>::const_iterator it = error_msg.find(req.get_error_code());
 					std::ostringstream oss;
-					oss << "HTTP/1.1 200 OK\r\n";
+					oss << "HTTP/1.1 " << req.get_error_code() << " " << it->second << "\r\n";
 					oss << "Content-Type: text/html\r\n";
-					// pas de Content-Length mais peut calculer
+					oss << "Content-Length: " << 266 + it->second.length() << "\r\n";
 					oss << "Connection: close\r\n\r\n";
 					header = oss.str();
-					// on garde la main pour get_next_chunk
-					closedir(dir);
+					error_code = req.get_error_code();
+					std::cout << "Error code " << error_code << std::endl;
+					done = true;
+					break;
 				}
-				break;
-			}
-			case 2:
-			{
-				std::map<int, std::string>::iterator it = error_page.find(req.get_error_code());
-				std::cout << it->second << std::endl;
-				file.open((root + "/" + it->second).c_str(), std::ios::binary);
-				file.seekg(0, std::ios::end);
-				size = file.tellg();
-				file.seekg(0, std::ios::beg);
-				content_type = get_content_type("/" + it->second);
-				std::ostringstream oss;
-				oss << "HTTP/1.1 404 Not Found\r\n";
-				oss << "Content-Type: " << content_type << "\r\n";
-				oss << "Content-Length: " << size << "\r\n";
-				oss << "Connection: close\r\n\r\n"; //close keep-alive
-				header = oss.str();
-				break;
-			}
-			case 3:
-			{
-				std::cout << "Error code creat : " << req.get_error_code() << std::endl;
-				std::map<int, std::string>::const_iterator it = error_msg.find(req.get_error_code());
-				std::ostringstream oss;
-				oss << "HTTP/1.1 " << req.get_error_code() << " " << it->second << "\r\n";
-				oss << "Content-Type: text/html\r\n";
-				oss << "Content-Length: " << 266 + it->second.length() << "\r\n";
-				oss << "Connection: close\r\n\r\n";
-				header = oss.str();
-				error_code = req.get_error_code();
-				break;
 			}
 		}
 	}
@@ -326,15 +347,17 @@ int	Response::get_error_status() const
 }
 
 
-int	Response::set_error_gestion(Request& req, std::map<int, std::string> error_page)
+int	Response::set_error_gestion(Request& req)
 {
-	if (req.get_path_rules().directory_listing == true && redir == false)
+	std::cout << "Set error gestion, error code = " << error_status << std::endl;
+	if (req.get_path_rules().directory_listing == true && redir == false && req.get_dir_lst() == true)
+	{
+		std::cout << "set error redir\n";
 		return (1);
-	else
-		return (4);
-	
-	std::map<int, std::string>::iterator it = error_page.find(req.get_error_code());
-	if (it != error_page.end())
+	}	
+
+	std::map<int, std::string>::iterator it = req.get_serv_block().get_error_page().find(req.get_error_code());
+	if (it != req.get_serv_block().get_error_page().end() && error_status != 4)
 		return (2);
 	else
 		return (3);

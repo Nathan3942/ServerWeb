@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:18:38 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/09/10 15:07:23 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/09/25 13:40:47 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -27,6 +27,7 @@ Server::Server(const char* _conf) : isRunning(false)
 
 	for (size_t i = 0; i < conf->get_port().size(); ++i)
 	{
+		std::cout << "Port : " << conf->get_port()[i] << std::endl;
 		int server_fd = socket(AF_INET, SOCK_STREAM, 0);
 		if (server_fd < 0) {
 			perror("socket");
@@ -223,14 +224,14 @@ void Server::start()
 			if (events[i].events & EPOLLIN)
 			{
 				std::cout << "Nouvelle requete:" << std::endl;
-				Request req(fd, conf->get_index()[0], conf->get_root(), *conf);
+				Request req(fd, *conf);
 
 				if (req.get_raw_request().empty())
 					conn.set_state(CLOSED);
 				else if (req.get_raw_request().find("\r\n\r\n") != std::string::npos)
 				{
 					std::cout << "fin de fichier" << std::endl;
-					Response* res = new Response(req, conf->get_root(), conf->get_error());
+					Response* res = new Response(req);
 					conn.set_response(res);
 					conn.set_write_buffer(res->get_next_chunk());
 					conn.set_state(WRITING);
