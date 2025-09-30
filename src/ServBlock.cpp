@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/09/25 12:01:03 by njeanbou          #+#    #+#             */
-/*   Updated: 2025/09/25 16:00:06 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/09/30 12:20:53 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -132,7 +132,7 @@ namespace {
 
 ///////CONSTRUCTORS///////
 
-ServBlock::ServBlock() : name("")
+ServBlock::ServBlock() : name(""), root("")
 {
     statu = true;
 }

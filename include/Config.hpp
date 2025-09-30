@@ -30,8 +30,6 @@ class Config {
 		std::vector<int> collect_all_ports();
         void	print();
     //getters
-
-	//faire geteur depuis le port directement
         std::map<std::string, ServBlock> get_servers() const { return servers; }
         std::map<int, std::string> get_port_serverName() const { return port_serverName; }
         std::vector<int> get_port() const { return port; }

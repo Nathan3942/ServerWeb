@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:47:14 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/09/25 15:38:56 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/09/30 13:00:17 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,6 +16,7 @@ Request::Request()
 {
     
 }
+
 
 Request::Request(int client_fd, Config& conf) : cgi(NULL), error_code(200), dir_lst(false)
 {
@@ -50,10 +51,12 @@ Request::Request(int client_fd, Config& conf) : cgi(NULL), error_code(200), dir_
 	}
 }
 
+
 Request::Request(const Request& copy) : raw_request(copy.raw_request), path(copy.path), method(copy.method), body(copy.body)
 {
    
 }
+
 
 Request::~Request()
 {
@@ -61,21 +64,6 @@ Request::~Request()
         delete cgi;
 }
 
-//passer conf en parametre pour dossier uploads, body_size, liste methode pour path, modif de path
-/*
-redirection ex GET /ancienne-page.html HTTP/1.1
-HTTP/1.1 301 Moved Permanently
-Location: http://example.com/nouvelle-page.html
-301 Moved Permanently : la ressource a changé d’adresse définitivement
-
-302 Found (ou Temporary Redirect) : changement temporaire d’adresse
-
-303 See Other : après un POST, redirige vers une autre page (souvent utilisée pour éviter de renvoyer le formulaire)
-
-307 Temporary Redirect : similaire à 302 mais préserve la méthode HTTP (POST reste POST)
-
-308 Permanent Redirect : comme 301 mais préserve la méthode HTTP
-*/
 
 ServBlock   *Request::extract_block(Config& conf)
 {
@@ -85,6 +73,7 @@ ServBlock   *Request::extract_block(Config& conf)
 	std::cout << "Port extrait : " << port << std::endl;
 	return (conf.get_block_from_port(port));
 }
+
 
 int	Request::extract_port()
 {
@@ -106,6 +95,7 @@ int	Request::extract_port()
 	}
 	return (80);
 }
+
 
 t_location	Request::extract_location()
 {
@@ -141,12 +131,13 @@ t_location	Request::extract_location()
 	return (rules);
 }
 
+
 void Request::setup_full_path()
 {
     if (!p_rules.loc.empty())
     {
 		std::cout << "Setup full path avec loca\n";
-		if (path == "/")
+		if (path == "/" || path[path.size() - 1] == '/')
 		{
 			std::cout << "Ajout index\n";
 			for (size_t i = 0; i < p_rules.index.size(); ++i)
@@ -159,18 +150,17 @@ void Request::setup_full_path()
 				}
 			}
 		}
+
+		std::cout << "Path : " << path << " Loc : " << p_rules.loc << " Root : " << p_rules.root << std::endl;
         size_t pos_alias = path.find(p_rules.loc);
         if (pos_alias != std::string::npos)
         {
-            path.erase(pos_alias, p_rules.loc.size() - 1);
+            path.erase(pos_alias, p_rules.loc.size());
             path.insert(pos_alias, p_rules.root);
         }
-
 		size_t pos_s = 0;
 		while ((pos_s = path.find("//", pos_s)) != std::string::npos)
     		path.erase(pos_s, 1);
-
-		// path.insert(0, ".");
 
 		std::cout << "Nouvelle path apres index et alias : " << path << std::endl;
     }
@@ -190,6 +180,7 @@ void Request::setup_full_path()
         path.insert(0, s_block->get_root());
     }
 }
+
 
 void    Request::error_check()
 {
@@ -238,7 +229,6 @@ void    Request::error_check()
     }
 	else
 	{
-		//peut etre faire dans response
 		std::string not_allowed[] = {"HEAD", "PUT", "CONNECT", "OPTIONS", "TRACE", "PATCH"};
         for (int i = 0; i < 6; ++i)
         {
@@ -257,6 +247,7 @@ void    Request::error_check()
         error_code = 414;
 }
 
+
 void	Request::rules_error(t_location rules)
 {
 	std::cout << "Rules path " << rules.loc << std::endl;
@@ -270,6 +261,7 @@ void	Request::rules_error(t_location rules)
 	if (method == "GET" && rules.directory_listing == true)
 		dir_lst = true;
 }
+
 
 std::string Request::receive_request(int client_fd)
 {
@@ -319,6 +311,7 @@ std::string Request::receive_request(int client_fd)
     return request;
 }
 
+
 std::string	Request::extract_path(const std::string& raw)
 {
 	std::string path = "/";
@@ -329,6 +322,7 @@ std::string	Request::extract_path(const std::string& raw)
 		path = raw.substr(pos1 + method.length() + 1, pos2 - (method.length() + 1));
 	return (path);
 }
+
 
 std::string Request::get_body() const
 {
@@ -385,21 +379,3 @@ bool    Request::get_dir_lst() const
 	return (dir_lst);
 }
 
-
-
-
-// ==12473==ERROR: AddressSanitizer: SEGV on unknown address 0x000000000010 (pc 0x740f6776b898 bp 0x7fffd44cbf90 sp 0x7fffd44cbf68 T0)
-// ==12473==The signal is caused by a READ memory access.
-// ==12473==Hint: address points to the zero page.
-//     #0 0x740f6776b898 in std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) (/lib/x86_64-linux-gnu/libstdc++.so.6+0x16b898) (BuildId: ca77dae775ec87540acd7218fa990c40d1c94ab1)
-//     #1 0x5e9831f227e3 in ServBlock::get_name[abi:cxx11]() const src/ServBlock.cpp:295
-//     #2 0x5e9831efacb5 in Request::Request(int, Config&) src/request.cpp:34
-//     #3 0x5e9831f2bcf5 in Server::start() src/server.cpp:227
-//     #4 0x5e9831efa51c in main src/main.cpp:44
-//     #5 0x740f6722a1c9 in __libc_start_call_main ../sysdeps/nptl/libc_start_call_main.h:58
-//     #6 0x740f6722a28a in __libc_start_main_impl ../csu/libc-start.c:360
-//     #7 0x5e9831dce304 in _start (/home/njeanbou/42/wsrv/webserv+0x15304) (BuildId: c5d4985b2682a08c44bc4cd78884f443f9d87f7e)
-
-// AddressSanitizer can not provide additional info.
-// SUMMARY: AddressSanitizer: SEGV (/lib/x86_64-linux-gnu/libstdc++.so.6+0x16b898) (BuildId: ca77dae775ec87540acd7218fa990c40d1c94ab1) in std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)
-// ==12473==ABORTING

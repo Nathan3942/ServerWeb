@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:46:56 by njeanbou          #+#    #+#             */
-/*   Updated: 2025/09/25 15:41:13 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/09/30 12:49:49 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,9 +14,6 @@
 
 Response::Response(Request& req) : path(req.get_path()), body_cgi(""), _root(req.get_serv_block().get_root()), error_status(0), error_code(200), header_sent(false), error_sent(false), autoindex_sent(false), redir(false)
 {
-	//voir pour passer path en full_path en argument de la classe pour lavoir dans gnc
-	// std::string full_path = root + path;
-	// _root = root;
 	std::cout << "Path : " << path << "\nError code " << req.get_error_code() << "\nDir lst " << req.get_dir_lst() << std::endl;
 	std::streampos size;
 	error_msg.clear();
@@ -165,7 +162,6 @@ Response::Response(Request& req) : path(req.get_path()), body_cgi(""), _root(req
 						// pas de Content-Length mais peut calculer
 						oss << "Connection: close\r\n\r\n";
 						header = oss.str();
-						// on garde la main pour get_next_chunk
 						closedir(dir);
 						done = true;
 					}
@@ -259,23 +255,22 @@ std::vector<char>	Response::get_next_chunk()
 		std::string dirPath = path;
 		size_t lastSlash = dirPath.find_last_of('/');
 		if (lastSlash != std::string::npos)
-			dirPath = dirPath.substr(0, lastSlash + 1); // garde le slash final
+			dirPath = dirPath.substr(0, lastSlash + 1);
 		std::cout << "Dirpath : " << dirPath << std::endl;
 		DIR *dir = opendir(dirPath.c_str());
 		if (!dir)
 		{
 			std::cout << "Error!!!\n";
-			return buffer; // rien à envoyer si dossier introuvable
+			return buffer;
 		}
 
 		// chemin public = path sans le root
 		std::string publicPath;
 		if (dirPath.find(_root) == 0)
-			publicPath = dirPath.substr(_root.size()); // enlève le root
+			publicPath = dirPath.substr(_root.size());
 		else
 			publicPath = dirPath;
 
-		// s'assurer que ça finit par un slash
 		if (!publicPath.empty() && publicPath[publicPath.size() - 1] != '/')
     		publicPath += '/';
 
@@ -487,89 +482,3 @@ std::string	Response::get_content_type(const std::string& path)
 		return (it->second);
 	return ("application/octet-stream");
 }
-
-
-// std::string read_binary(const std::string& filepath)
-// {
-// 	std::ifstream file(filepath.c_str(), std::ios::in | std::ios::binary);
-// 	if (!file)
-// 		return ("-404");
-	
-// 	std::string content;
-// 	char	buffer[1024];
-// 	while (file.read(buffer, sizeof(buffer)))
-// 		content.append(buffer, file.gcount());
-// 	if (file.gcount() > 0)
-// 		content.append(buffer, file.gcount());
-// 	return (content);
-// }
-
-// std::string read_default(const std::string& filepath)
-// {
-//     std::ifstream file(filepath.c_str());
-//     if (!file)
-//         return ("-404");
-//     std::string content;
-//     char c;
-//     while (file.get(c))
-//         content += c;
-//     return (content);
-// }
-
-// std::string Response::read_file(const std::string& path)
-// {
-//     std::string full_path = std::string(WEBROOT) + path;
-// 	std::cout << full_path << std::endl;
-	
-// 	if (content_type.find("text/") != std::string::npos)
-// 	   	return (read_default(full_path));
-// 	else
-// 		return (read_binary(full_path));
-// }
-
-// std::vector<char> Response::build_reponse(const std::string& body)
-// {
-// 	std::ostringstream oss;
-// 	if (body.find("-404") != std::string::npos)
-// 		oss << "HTTP/1.1 404 \r\n";
-// 	else
-// 		oss << "HTTP/1.1 200 \r\n";
-// 	oss << "Content-Type: " << content_type << "\r\n";
-// 	oss << "Content-Length: " << body.size() << "\r\n";
-// 	// oss << "Content-Disposition: inline\r\n";
-// 	oss << "Connection: close\r\n\r\n";
-
-// 	std::string header = oss.str();
-// 	std::cout << header << std::endl;
-// 	std::vector<char> response;
-// 	response.insert(response.end(), header.begin(), header.end());
-// 	response.insert(response.end(), body.begin(), body.end());
-// 	return response;
-// }
-
-// const std::vector<char>& Response::get_response() const
-// {
-// 	return http_response;
-// }
-
-// std::string Response::build_reponse(const std::string& body)
-// {
-//     std::string reponse;
-// 	if (body.find("404") != std::string::npos)
-// 		reponse += "HTTP/1.1 404 \r\n";
-// 	else
-// 		reponse += "HTTP/1.1 200 \r\n";
-// 	reponse += "Content-Type: " + content_type + "\r\n";
-	
-// 	char lenght[32];
-// 	sprintf(lenght, "%lu", (unsigned long)body.size());
-// 	reponse += "Content-Length: " + std::string(lenght) + "\r\n";
-// 	reponse += "Connection: close\r\n\r\n";
-// 	reponse += body;
-// 	return (reponse);
-// }
-
-// std::string Response::get_response() const
-// {
-//     return (http_response);
-// }
