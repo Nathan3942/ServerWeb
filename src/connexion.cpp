@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/07/04 17:45:27 by njeanbou          #+#    #+#             */
-/*   Updated: 2025/07/22 09:15:36 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/10/01 16:39:47 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -17,10 +17,16 @@ Connexion::Connexion() : fd(-1), state(READING), bytes_sent(0)
 
 }
 
-Connexion::Connexion(int _fd) : fd(_fd), state(READING), bytes_sent(0)
+Connexion::Connexion(int _fd) : fd(_fd), state(READING), bytes_sent(0), response(NULL)
 {
 
 }
+
+Connexion::~Connexion()
+{
+	delete response;
+}
+
 
 State	Connexion::get_state() const
 {
@@ -49,6 +55,8 @@ Response*	Connexion::get_response()
 
 void	Connexion::set_response(Response* res)
 {
+	if (response)
+		delete response;
 	response = res;
 }
 

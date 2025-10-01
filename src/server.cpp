@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:18:38 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/09/30 13:25:15 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/10/01 17:21:15 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,7 +21,7 @@ Server::Server(const char* _conf) : isRunning(false)
 	epoll_fd = epoll_create1(0);
 	if (epoll_fd == -1)
 	{
-		perror("epoll_creat1");
+		std::cerr << "epoll_creat1: can't creat\n";
 		exit(1);
 	}
 
@@ -29,21 +29,22 @@ Server::Server(const char* _conf) : isRunning(false)
 	{
 		std::cout << "Port : " << conf->get_port()[i] << std::endl;
 		int server_fd = socket(AF_INET, SOCK_STREAM, 0);
-		if (server_fd < 0) {
-			perror("socket");
+		if (server_fd < 0)
+		{
+			std::cerr << "socket: can't set socket\n";
 			exit(1);
 		}
 
 		int opt = 1;
 		if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
 		{
-			perror("Error set socket");
+			std::cerr << "set socket: can't set\n";
 			return ;
 		}
 
 		if (set_nonblocking(server_fd) == -1)
 		{
-			perror("set_nonblocking");
+			std::cerr << "set_nonblocking: can't set\n";
 			exit(1);
 		}
 
@@ -56,12 +57,13 @@ Server::Server(const char* _conf) : isRunning(false)
 
 		if (bind(server_fd, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0)
 		{
-			perror("bind");
+			std::cerr << "bind: Permission denied\n";
 			exit(1);
 		}
 
-		if (listen(server_fd, 5) < 0) {
-			perror("listen");
+		if (listen(server_fd, 5) < 0)
+		{
+			std::cerr << "listen: can't listen fd\n";
 			exit(1);
 		}
 
@@ -71,7 +73,7 @@ Server::Server(const char* _conf) : isRunning(false)
 
 		if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, server_fd, &ev) == -1)
 		{
-			perror("epoll_ctl: listen socket");
+			std::cerr << "epoll_ctl: listen socket\n";
 			exit(1);
 		}
 
@@ -95,27 +97,23 @@ void	Server::close_socket()
 }
 
 
-void	Server::shutdown()
+void Server::shutdown()
 {
-	std::cout << "\nShutting down server..." << std::endl;
+    std::cout << "\nShutting down server..." << std::endl;
 
-	for (std::map<int, Connexion>::iterator it = clients.begin(); it != clients.end(); ++it)
-	{
-		int fd = it->first;
-		if (it->second.get_response())
-		{
-			it->second.get_response()->close();
-			delete it->second.get_response();
-		}
-		close(fd);
-	}
-	clients.clear();
+    for (std::map<int, Connexion*>::iterator it = clients.begin(); it != clients.end(); ++it)
+    {
+        int fd = it->first;
+        delete it->second;
+        close(fd);
+    }
+    clients.clear();
+    close_socket();
 
-	close_socket();
+    if (epoll_fd != -1)
+        close(epoll_fd);
 
-	if (epoll_fd != -1)
-		close(epoll_fd);
-	isRunning = false;
+    isRunning = false;
 }
 
 
@@ -147,20 +145,21 @@ void	Server::accept_connection(int listen_fd)
 	int client_fd = accept(listen_fd, (struct sockaddr*)&client_addr, &client_len);
 	if (client_fd < 0)
 	{
-		perror("accept");
+		std::cerr << "accept: connextion aren't accepted\n";
 		return ;
 	}
 
 	set_nonblocking(client_fd);
 
-	clients[client_fd] = Connexion(client_fd);
+	Connexion* new_conn = new Connexion(client_fd);
+	clients[client_fd] = new_conn;
 
 	struct epoll_event	ev;
 	ev.events = EPOLLIN;
 	ev.data.fd = client_fd;
 	if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, &ev) == -1)
 	{
-		perror("epoll_ctl: client");
+		std::cerr << "epoll_ctl: client\n";
 		close(client_fd);
 	}
 }
@@ -181,7 +180,7 @@ void Server::start()
 			//!\\/
 			if (errno == EINTR)
         		continue;
-			perror("epoll_wait");
+			std::cerr << "epoll_wait: Error\n";
 			continue;
 		}
 
@@ -195,10 +194,10 @@ void Server::start()
 				continue;
 			}
 
-			std::map<int, Connexion>::iterator it = clients.find(fd);
+			std::map<int, Connexion*>::iterator it = clients.find(fd);
 			if (it == clients.end())
 				continue;
-			Connexion &conn = it->second;
+			Connexion *conn = it->second;
 
 			// Lecture de la requête
 			if (events[i].events & EPOLLIN)
@@ -207,14 +206,17 @@ void Server::start()
 				Request req(fd, *conf);
 
 				if (req.get_raw_request().empty())
-					conn.set_state(CLOSED);
+				{
+					std::cout << "La requete est vide, passe la state en closed\n";
+					conn->set_state(CLOSED);
+				}
 				else if (req.get_raw_request().find("\r\n\r\n") != std::string::npos)
 				{
 					std::cout << "fin de fichier" << std::endl;
 					Response* res = new Response(req);
-					conn.set_response(res);
-					conn.set_write_buffer(res->get_next_chunk());
-					conn.set_state(WRITING);
+					conn->set_response(res);
+					conn->set_write_buffer(res->get_next_chunk());
+					conn->set_state(WRITING);
 
 					// Modifier les événements pour écouter EPOLLOUT
 					struct epoll_event ev;
@@ -223,7 +225,7 @@ void Server::start()
 					if (epoll_ctl(epoll_fd, EPOLL_CTL_MOD, fd, &ev) == -1)
 					{
 						std::cerr << "epoll_ctl: mod EPOLLOUT\n";
-						conn.set_state(CLOSED);
+						conn->set_state(CLOSED);
 					}
 				}
 			}
@@ -231,68 +233,72 @@ void Server::start()
 			//Envoi de la réponse
 			if (events[i].events & EPOLLOUT)
 			{
-				if (conn.get_state() == WRITING)
+				if (conn->get_state() == WRITING)
 				{
-					std::vector<char>& buf = conn.get_write_buffer();
+					std::vector<char>& buf = conn->get_write_buffer();
 					size_t total = buf.size();
-					ssize_t sent = send(fd, &buf[conn.get_bytes_sent()], total - conn.get_bytes_sent(), 0);
+					ssize_t sent = send(fd, &buf[conn->get_bytes_sent()], total - conn->get_bytes_sent(), 0);
 					//std::cout << &buf[conn.get_bytes_sent()] << std::endl;
 					if (sent < 0)
 					{
 						std::cerr << "send error\n";
-						conn.set_state(CLOSED);
+						conn->set_state(CLOSED);
 						continue;
 					}
-					conn.set_bytes_sent(conn.get_bytes_sent() + sent);
+					conn->set_bytes_sent(conn->get_bytes_sent() + sent);
 
-					if (conn.get_bytes_sent() == buf.size())
+					if (conn->get_bytes_sent() == buf.size())
 					{
-						conn.clear();
+						conn->clear();
 						
-						Response* res = conn.get_response();
+						Response* res = conn->get_response();
 						if (res)
 						{
 							std::vector<char> chunk = res->get_next_chunk();
 							if (!chunk.empty())
 							{
-								conn.get_write_buffer() = chunk;
+								conn->get_write_buffer() = chunk;
 								continue;
 							}
 							else
 							{
 								res->close();
-								delete res;
-								conn.set_response(NULL);
-								conn.set_state(CLOSED);
+								// delete res;
+								// conn->set_response(NULL);
+								conn->set_state(CLOSED);
 								break;
 							}
 						}
 					}
 					
-					struct epoll_event ev;
-					ev.events = EPOLLIN;
-					ev.data.fd = fd;
-					if (epoll_ctl(epoll_fd, EPOLL_CTL_MOD, fd, &ev) == -1)
+					if (conn->get_state() != CLOSED)
 					{
-						perror("epoll_ctl: restore EPOLLIN");
-						conn.set_state(CLOSED);
+						struct epoll_event ev;
+						ev.events = EPOLLIN;
+						ev.data.fd = fd;
+						if (epoll_ctl(epoll_fd, EPOLL_CTL_MOD, fd, &ev) == -1)
+						{
+							std::cerr << "epoll_ctl: restore EPOLLIN\n";
+							conn->set_state(CLOSED);
+						}
+						else
+							conn->set_state(READING);
 					}
-					else
-						conn.set_state(READING);
 				}
 			}
 
 			// close les fd
-			if (conn.get_state() == CLOSED)
+			if (conn->get_state() == CLOSED)
 			{
-				if (conn.get_response())
-				{
-					conn.get_response()->close();
-					delete conn.get_response();
-				}
+				// if (conn->get_response())
+				// {
+				// 	conn->get_response()->close();
+				// 	// delete conn->get_response();
+				// }
 				std::cout << "Closing connection: fd=" << fd << std::endl;
 				epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
 				close(fd);
+				delete conn;
 				clients.erase(fd);
 			}
 			

@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:17:59 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/09/25 11:46:42 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/10/01 16:27:02 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -51,7 +51,7 @@ class Server
     private:
         std::vector<int>    ports;
         std::vector<int>    sockets;
-        std::map<int, Connexion> clients;
+        std::map<int, Connexion*> clients;
 		Config*	conf;
         int epoll_fd;
         bool isRunning; 

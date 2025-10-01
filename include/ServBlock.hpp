@@ -5,8 +5,8 @@
 /*                                                    +:+ +:+         +:+     */
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2025/09/25 12:00:03 by njeanbou          #+#    #+#             */
-/*   Updated: 2025/09/25 13:22:04 by njeanbou         ###   ########.fr       */
+/*   Created: 2025/09/25 12:00:03 by ichpakov          #+#    #+#             */
+/*   Updated: 2025/10/01 17:54:17 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -30,7 +30,6 @@
 
 class ServBlock {
     private :
-        bool statu; //true for valide and false for invalide configuration file
         std::string name; //server name 
         std::string root; //default server root
         int client_max_body_size; //value in octet
@@ -39,22 +38,58 @@ class ServBlock {
         std::map<int, std::string> error_page; // int is error code and string is associate file
         std::map<std::string, t_location> locations; //name of location + struct location
 
-        bool copy_file(const char* src, const char* dst) const;
-        void copy_all_files(const char* srcDir, const char* dstDir) const;
-        void root_checker(const char* srcDdir, const char* dstDir);
-        void set_default(int overwrite);
-
-        
+        void parse_HTTP(int &code, std::string &redir, std::string str);
+        std::string root_compose(std::map<std::string, std::string> &module, std::string name);
+        int parse_client_max_body_size(std::string &value);        
         
     public :
+        class confSyntaxException : public std::exception {
+            virtual const char* what() const throw() {
+                return "Conf: Syntax error on config file.";
+            }
+        };
+        class redirHTTPException : public std::exception {
+            virtual const char* what() const throw() {
+                return "Conf: Bad syntax for redirHTTP.";
+            }
+        };
+        class rootException : public std::exception {
+            virtual const char* what() const throw() {
+                return "Conf: alias and root define on the same bloc.";
+            }
+        };
+        class tooMuchPageErrorException : public std::exception {
+            virtual const char* what() const throw() {
+                return "Conf: Too much page error define on a line.";
+            }
+        };
+        class invalidNumberException : public std::exception {
+            virtual const char* what() const throw() {
+                return "Conf: Invalid number in client_max_body_size.";
+            }
+        };
+        class conversionFailedException : public std::exception {
+            virtual const char* what() const throw() {
+                return "Conf: Conversion failed for client_max_body_size.";
+            }
+        };
+        class invalidSuffixException : public std::exception {
+            virtual const char* what() const throw() {
+                return "Conf: Invalid suffix in client_max_body_size.";
+            }
+        };
+        class TooLargeExeption : public std::exception {
+            virtual const char* what() const throw() {
+                return "Conf: client_max_body_size too large.";
+            }
+        };
+
         ServBlock();
-        ServBlock(std::string name);
         ~ServBlock();
 
         int parse_ServBlock(std::ifstream &fd);
 
         //getters
-        bool get_statu() const;
         std::vector<int> get_port() const; 
         std::string get_name() const;
         std::string get_root() const;

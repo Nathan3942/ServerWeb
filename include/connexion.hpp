@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/07/04 17:42:12 by njeanbou          #+#    #+#             */
-/*   Updated: 2025/07/11 06:30:14 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/10/01 16:33:24 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -35,8 +35,7 @@ class Connexion
     public:
 		Connexion();
         Connexion(int _fd);
-
-
+        ~Connexion();
 
         State get_state() const;
 		int	get_fd() const;

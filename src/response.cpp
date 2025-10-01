@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:46:56 by njeanbou          #+#    #+#             */
-/*   Updated: 2025/09/30 12:49:49 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/10/01 17:28:56 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,6 +18,7 @@ Response::Response(Request& req) : path(req.get_path()), body_cgi(""), _root(req
 	std::streampos size;
 	error_msg.clear();
 	error_msg[400] = "Bad Request";
+	error_msg[404] = "Not Found";
 	error_msg[403] = "Forbidden";
 	error_msg[405] = "Method Not Allowed";
 	error_msg[411] = "Length Required";
@@ -97,6 +98,8 @@ Response::Response(Request& req) : path(req.get_path()), body_cgi(""), _root(req
 				if (S_ISDIR(s.st_mode))
 				{
 					std::cout << "C'est un répertoire !" << std::endl;
+					if (path[path.size() - 1] != '/')
+						path.push_back('/');
 					req.set_error_code(403); // ou activer dir listing
 				}
 				else if (S_ISREG(s.st_mode))
@@ -233,7 +236,7 @@ std::vector<char>	Response::get_next_chunk()
 		return (buffer);
 	}
 	
-	if (!error_sent && error_status == 3)
+	if (!error_sent && (error_status == 3 || error_status == 4))
 	{
 		error_sent = true;
 		std::map<int, std::string>::const_iterator it = error_msg.find(error_code);
@@ -282,6 +285,7 @@ std::vector<char>	Response::get_next_chunk()
 		body << "<ul>\n";
 
 		struct dirent *entry;
+		std::string dir_path = publicPath.erase(0, publicPath.find_first_not_of("/"));
 		while ((entry = readdir(dir)) != NULL)
 		{
 			std::string name = entry->d_name;
@@ -289,7 +293,7 @@ std::vector<char>	Response::get_next_chunk()
 				continue;
 
 			// lien public : juste le nom du fichier, pas le root
-			body << "<li><a href=\"/" << name << "\">" << name << "</a></li>\n";
+			body << "<li><a href=\"/" << dir_path << name << "\">" << name << "</a></li>\n";
 		}
 		body << "</ul>\n</body>\n</html>\n";
 
@@ -349,9 +353,10 @@ int	Response::set_error_gestion(Request& req)
 	{
 		std::cout << "set error redir\n";
 		return (1);
-	}	
+	}
 
-	std::map<int, std::string>::iterator it = req.get_serv_block().get_error_page().find(req.get_error_code());
+	std::map<int, std::string> err_page = req.get_serv_block().get_error_page();
+	std::map<int, std::string>::iterator it = err_page.find(req.get_error_code());
 	if (it != req.get_serv_block().get_error_page().end() && error_status != 4)
 		return (2);
 	else

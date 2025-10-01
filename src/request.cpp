@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:47:14 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/09/30 13:00:17 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/10/01 18:59:20 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,6 +21,11 @@ Request::Request()
 Request::Request(int client_fd, Config& conf) : cgi(NULL), error_code(200), dir_lst(false)
 {
 	raw_request = receive_request(client_fd);
+	if (raw_request.empty())
+	{
+		std::cout << "Requete vide!!!\n";
+		return;
+	}
 	if (raw_request.find("DELETE") != std::string::npos)
 		method = "DELETE";
 	else if (raw_request.find("POST") != std::string::npos)
@@ -77,6 +82,7 @@ ServBlock   *Request::extract_block(Config& conf)
 
 int	Request::extract_port()
 {
+	std::cout << "Raw request : " << raw_request << std::endl;
 	std::string hostKey = "Host:";
 	size_t pos1 = raw_request.find(hostKey);
 	if (pos1 == std::string::npos)
@@ -99,7 +105,12 @@ int	Request::extract_port()
 
 t_location	Request::extract_location()
 {
-	std::string fullPath = s_block->get_root() + path;
+	std::cerr << "s_block = " << s_block << std::endl;
+if (s_block) {
+    std::cerr << "root = " << s_block->get_root() << std::endl;
+}
+	std::string fullPath = "";
+		fullPath = s_block->get_root() + path;
 	std::map<std::string, t_location> m_rules = s_block->get_locations();
 	std::string root = path;
 	t_location rules;
@@ -131,53 +142,82 @@ t_location	Request::extract_location()
 	return (rules);
 }
 
+bool	file_existe(const std::string& filename)
+{
+	struct stat buffer;
+	return (stat(filename.c_str(), &buffer) == 0 && !(buffer.st_mode & S_IFDIR));
+}
+
 
 void Request::setup_full_path()
 {
     if (!p_rules.loc.empty())
     {
 		std::cout << "Setup full path avec loca\n";
-		if (path == "/" || path[path.size() - 1] == '/')
-		{
-			std::cout << "Ajout index\n";
-			for (size_t i = 0; i < p_rules.index.size(); ++i)
-			{
-				if (p_rules.index[i] != "")
-				{
-					path = path + p_rules.index[i];
-					std::cout << "Path : " << path << " Index : " << p_rules.index[i] << std::endl;
-					break;
-				}
-			}
-		}
-
 		std::cout << "Path : " << path << " Loc : " << p_rules.loc << " Root : " << p_rules.root << std::endl;
         size_t pos_alias = path.find(p_rules.loc);
         if (pos_alias != std::string::npos)
         {
-            path.erase(pos_alias, p_rules.loc.size());
-            path.insert(pos_alias, p_rules.root);
-        }
+			if (p_rules.root != "")
+			{
+				if (p_rules.loc != "/")
+            		path.erase(pos_alias, p_rules.loc.size());
+            	path.insert(pos_alias, p_rules.root);
+			}
+			else
+			{
+				if (p_rules.loc != "/")
+					path.erase(pos_alias, p_rules.loc.size());
+            	path.insert(pos_alias, s_block->get_root());
+			}
+		}
 		size_t pos_s = 0;
 		while ((pos_s = path.find("//", pos_s)) != std::string::npos)
     		path.erase(pos_s, 1);
 
+		if (path == "/" || path[path.size() - 1] == '/')
+		{
+			std::cout << "Ajout index\n";
+			if (p_rules.index.empty())
+			{
+				for (size_t i = 0; i < s_block->get_index().size(); ++i)
+				{
+					if (file_existe(path + s_block->get_index()[i]))
+					{
+						path = path + s_block->get_index()[i];
+						break;
+					}
+				}
+			}
+			else
+			{
+				for (size_t i = 0; i < p_rules.index.size(); ++i)
+				{
+					if (file_existe(path + p_rules.index[i]))
+					{
+						path = path + p_rules.index[i];
+						std::cout << "Path : " << path << " Index : " << p_rules.index[i] << std::endl;
+						break;
+					}
+				}
+			}
+		}
 		std::cout << "Nouvelle path apres index et alias : " << path << std::endl;
     }
     else
     {
+        path.insert(0, s_block->get_root());
 		if (path == "/")
 		{
 			for (size_t i = 0; i < s_block->get_index().size(); ++i)
 			{
-				if (s_block->get_index()[i] != "")
+				if (file_existe(path + s_block->get_index()[i]))
 				{
 					path = path + s_block->get_index()[i];
 					break;
 				}
 			}
 		}
-        path.insert(0, s_block->get_root());
     }
 }
 
@@ -251,7 +291,7 @@ void    Request::error_check()
 void	Request::rules_error(t_location rules)
 {
 	std::cout << "Rules path " << rules.loc << std::endl;
-	if (rules.allow_methods.find(method) == std::string::npos)
+	if (rules.allow_methods.find(method) == std::string::npos && !rules.allow_methods.empty())
 	{
 		error_code = 405;
 		return ;
@@ -275,7 +315,7 @@ std::string Request::receive_request(int client_fd)
         memset(buffer, 0, bufferSize);
         bytesRead = recv(client_fd, buffer, bufferSize - 1, 0);
         if (bytesRead <= 0)
-			break;
+			return ("");
         request.append(buffer, bytesRead);
         if (request.find("\r\n\r\n") != std::string::npos)
 			break;
