@@ -16,6 +16,7 @@
 
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <poll.h>
 #include <sstream>
 #include <vector>
 

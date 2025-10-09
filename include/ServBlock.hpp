@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/09/25 12:00:03 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/10/01 17:54:17 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/10/09 16:11:20 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -43,6 +43,11 @@ class ServBlock {
         int parse_client_max_body_size(std::string &value);        
         
     public :
+        class NoNameException : public std::exception {
+            virtual const char* what() const throw() {
+                return "Conf: Server should have a name.";
+            }
+        };
         class confSyntaxException : public std::exception {
             virtual const char* what() const throw() {
                 return "Conf: Syntax error on config file.";
@@ -95,14 +100,13 @@ class ServBlock {
         std::string get_root() const;
         int get_client_max_body_size() const;
         std::vector<std::string> get_index() const;
-        std::map<int, std::string> get_error_page() const;
+        const std::map<int, std::string> &get_error_page() const;
         std::map<std::string, t_location> get_locations() const;
 
 
         // bool get_statu() const;
         void parse_location(std::ifstream &fd, t_location &loc, std::string name);
-        void parse_error_page(std::string value);
-
+        void parse_error_page(const std::string &value, std::map<int, std::string> &error_pages);
 };
 
 std::ostream& operator<<(std::ostream& o, ServBlock& SBlock);

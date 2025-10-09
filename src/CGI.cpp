@@ -75,35 +75,6 @@ void CGI::buildEnv()
     envp.push_back(NULL);
 }
 
-// void CGI::setupAndRun()
-// {
-//     int pipefd[2];
-//     if (pipe(pipefd) < 0)
-//         return;
-//     pid_t pid = fork();
-//     if (pid == 0)
-//     {
-//         dup2(pipefd[1], STDOUT_FILENO);
-//         close(pipefd[0]);
-//         chdir("/www/cgi-bin");
-
-//         char *argv[] = { const_cast<char*>("/usr/bin/php-cgi"), NULL};
-//         execve("/usr/bin/php-cgi", argv, envp.data());
-//         exit(1);
-//     } else
-//     {
-//         close(pipefd[1]);
-
-//         char buffer[4096];
-//         ssize_t bytes;
-//         while ((bytes = read(pipefd[0], buffer, sizeof(buffer))) > 0) {
-//             cgiOutput.append(buffer, bytes);
-//         }
-//         close(pipefd[0]);
-//         waitpid(pid, NULL, 0);
-//     }
-// }
-
 void CGI::setupAndRun()
 {
     int stdout_pipe[2];
@@ -119,7 +90,6 @@ void CGI::setupAndRun()
         // Rediriger stdin vers le pipe de lecture
         dup2(stdin_pipe[0], STDIN_FILENO);
 
-        // Fermer les descripteurs inutiles
         close(stdout_pipe[0]);
         close(stdout_pipe[1]);
         close(stdin_pipe[0]);
@@ -133,24 +103,69 @@ void CGI::setupAndRun()
     }
     else
     {
-        // Côté parent
-        close(stdout_pipe[1]); // On lit depuis stdout
-        close(stdin_pipe[0]);  // On écrit vers stdin
+        close(stdout_pipe[1]);
+        close(stdin_pipe[0]);
 
-        // Envoyer le body vers le CGI via stdin
         std::string body = request.get_body();
         if (!body.empty())
             write(stdin_pipe[1], body.c_str(), body.size());
-        close(stdin_pipe[1]); // Fermer stdin du CGI après écriture
+        close(stdin_pipe[1]);
 
-        // Lire la sortie du CGI
+        const int TIMEOUT_MS = 5000;
+        const int POLL_STEP_MS = 100;
+        const int MAX_ITER = TIMEOUT_MS / POLL_STEP_MS;
+
         char buffer[4096];
-        ssize_t bytes;
-        while ((bytes = read(stdout_pipe[0], buffer, sizeof(buffer))) > 0) {
-            cgiOutput.append(buffer, bytes);
+        struct pollfd pfd;
+        pfd.fd = stdout_pipe[0];
+        pfd.events = POLLIN | POLLHUP;
+
+        bool timed_out = false;
+
+        for (int i = 0; i < MAX_ITER; ++i)
+        {
+            int ret = poll(&pfd, 1, POLL_STEP_MS);
+            if (ret > 0)
+            {
+                if (pfd.revents & POLLIN)
+                {
+                    ssize_t bytes = read(stdout_pipe[0], buffer, sizeof(buffer));
+                    if (bytes > 0)
+                        cgiOutput.append(buffer, bytes);
+                    else if (bytes == 0)
+                        break;
+                }
+                else if (pfd.revents & POLLHUP)
+                {
+                    break;
+                }
+            }
+            else if (ret == 0)
+            {
+                int status;
+                pid_t result = waitpid(pid, &status, WNOHANG);
+                if (result == pid)
+                {
+                    break;
+                }
+            }
+            else if (ret < 0 && errno != EINTR)
+            {
+                break;
+            }
+        }
+
+        int status;
+        pid_t result = waitpid(pid, &status, WNOHANG);
+        if (result == 0)
+        {
+            kill(pid, SIGKILL);
+            waitpid(pid, &status, 0);
+            timed_out = true;
         }
         close(stdout_pipe[0]);
-        waitpid(pid, NULL, 0);
+        if (timed_out)
+            cgiOutput = "Status: 504 Gateway Timeout\r\nContent-Type: text/plain\r\n\r\nCGI script timed out.";
     }
 }
 

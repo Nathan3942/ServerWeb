@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:58:45 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/10/01 15:07:10 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/10/09 16:33:26 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -31,20 +31,29 @@ int main(int ac, char **av)
         conf = "config.conf";
     // Ignore le signal SIGPIPE pour éviter que send sur socket fermée plante le process
     signal(SIGPIPE, SIG_IGN);
-    Server* s = new Server(conf.c_str());
+    try
+    {
+        Server* s = new Server(conf.c_str());
 
-	global_server = s;
+        global_server = s;
 
-    struct sigaction sa;
-    sa.sa_handler = signal_handler;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
-    sigaction(SIGINT, &sa, NULL);
+        struct sigaction sa;
+        sa.sa_handler = signal_handler;
+        sigemptyset(&sa.sa_mask);
+        sa.sa_flags = 0;
+        sigaction(SIGINT, &sa, NULL);
 
-    s->start();
-    
-    delete s;
-    return 0;
+        s->start();
+        
+        delete s;
+        return 0;
+    }
+    catch(const std::exception& e)
+    {
+        std::cerr << e.what() << '\n';
+        return (1);
+    }
+    return (0);
 }
 
 //ab -n 100 -c 20 http://127.0.0.1:8080/ test stress

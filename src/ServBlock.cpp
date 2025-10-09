@@ -1,3 +1,15 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   ServBlock.cpp                                      :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/10/09 15:11:22 by njeanbou          #+#    #+#             */
+/*   Updated: 2025/10/09 16:18:34 by njeanbou         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #include "../include/ServBlock.hpp"
 
 namespace {
@@ -34,6 +46,8 @@ namespace {
         o << "  directory_listing :" << loc.directory_listing << std::endl;
         o << "  upload_enable :" << loc.upload_enable << std::endl;
         o << "  cgi_extension :" << loc.cgi_extension << std::endl;
+        for (std::map<int, std::string>::const_iterator it = loc.error_page.begin(); it != loc.error_page.end(); ++it)
+            o << "  error_page " << it->first << " " << it->second << std::endl;
         for (std::vector<std::string>::iterator it = loc.index.begin(); it != loc.index.end(); it++)
             o<< "  index : " << *it << std::endl;
     }
@@ -149,22 +163,25 @@ int ServBlock::parse_client_max_body_size(std::string &value) {
     return number * multiplier;
 }
 
-void ServBlock::parse_error_page(std::string value) {
-    int tmp[100];
-    int i = 0;
+void ServBlock::parse_error_page(const std::string &value, std::map<int, std::string> &error_pages)
+{
     std::istringstream iss(value);
-    while(i < 100 && iss >> tmp[i])
-        i++;
-    iss.clear();
-    std::string page;
-    iss >> page;
-    if (i >= 100) {
-        throw tooMuchPageErrorException();
-    }
-    for (int j = 0; j < i; j++)
+    std::vector<int> codes;
+    std::string token;
+
+    while (iss >> token)
     {
-        error_page[tmp[j]] = page;
+        if (!token.empty() && token[0] == '/')
+        {
+            for (size_t i = 0; i < codes.size(); ++i)
+                error_pages[codes[i]] = token;
+            return;
+        }
+        int code;
+        std::istringstream(token) >> code;
+        codes.push_back(code);
     }
+    throw std::runtime_error("Config: Invalid error_page directive (missing path).");
 }
 
 ///////METHODES///////
@@ -176,7 +193,7 @@ int ServBlock::parse_ServBlock(std::ifstream &fd) {
     keys.push_back("server_name"); //name
     keys.push_back("root"); //root
     keys.push_back("index"); //index
-    keys.push_back("error_page"); //error_page
+    keys.push_back("error_page");       //error_page
     keys.push_back("client_max_body_size"); //client_max_body_size
 
     std::string line;
@@ -205,11 +222,13 @@ int ServBlock::parse_ServBlock(std::ifstream &fd) {
             value.erase(0, value.find_first_not_of(" \t\""));
             value.erase(value.find_last_not_of(" \t\"") + 1);
             if (key == "error_page")
-                parse_error_page(value);
+                parse_error_page(value, error_page);
             else
                 server[key] = value;
         }
     }
+    if (server["server_name"].empty())
+        name = "default";
     name                    = server["server_name"];
     root                    = server["root"];
     client_max_body_size    = parse_client_max_body_size(server["client_max_body_size"]);
@@ -232,14 +251,14 @@ std::string ServBlock::get_name() const { return name; }
 std::string ServBlock::get_root() const { return root; }
 int ServBlock::get_client_max_body_size() const { return client_max_body_size; }
 std::vector<std::string> ServBlock::get_index() const { return index; }
-std::map<int, std::string> ServBlock::get_error_page() const { return error_page; }
+const std::map<int, std::string> &ServBlock::get_error_page() const { return error_page; }
 std::map<std::string, t_location> ServBlock::get_locations() const { return locations; }
 
 ///////LOCATION///////
 
 void ServBlock::parse_location(std::ifstream &fd, t_location &loc, std::string name) {
     std::vector<std::string> keys;
-    keys.reserve(9);
+    keys.reserve(10);
     keys.push_back("alias");            //root
     keys.push_back("allow_methods");    //allow_methods
     keys.push_back("return");           //redirHTTP
@@ -248,6 +267,7 @@ void ServBlock::parse_location(std::ifstream &fd, t_location &loc, std::string n
     keys.push_back("autoindex");        //directory_listing
     keys.push_back("upload_enable");    //upload_enable
     keys.push_back("cgi_extension");    //cgi_extension
+    keys.push_back("error_page");       //error_page
     keys.push_back("index");            //index
 
     loc.loc = name;
@@ -266,7 +286,10 @@ void ServBlock::parse_location(std::ifstream &fd, t_location &loc, std::string n
             std::getline(iss, value, ';');
             value.erase(0, value.find_first_not_of(" \t\""));
             value.erase(value.find_last_not_of(" \t\"") + 1);
-            module[key] = value;
+            if (key == "error_page")
+                parse_error_page(value, loc.error_page);
+            else
+                module[key] = value;
         }
     }
     loc.allow_methods       = module["allow_methods"];

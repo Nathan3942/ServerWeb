@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:47:14 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/10/01 18:59:20 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/10/09 17:32:41 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -44,7 +44,7 @@ Request::Request(int client_fd, Config& conf) : cgi(NULL), error_code(200), dir_
 	setup_full_path();
 	std::cout << "Path " << path << "\nMethode " << method << std::endl;
     error_check();
-    if (raw_request.find(".php") != std::string::npos && raw_request.find("favicon.ico") == std::string::npos && error_code == 200)
+    if (raw_request.find(".php") != std::string::npos && raw_request.find("favicon.ico") == std::string::npos && error_code == 200 && p_rules.cgi_extension == true)
     {
 		cgi = new CGI(*this, s_block->get_root());
 	}
@@ -244,11 +244,13 @@ void    Request::error_check()
     }
     else if (method == "POST")
     {
+		if (raw_request.find(".php") != std::string::npos && p_rules.cgi_extension == false)
+			error_code = 403;
 		if (raw_request.find("Content-Length") == std::string::npos)
     	    error_code = 411;
         else if (body.size() > static_cast<size_t>(s_block->get_client_max_body_size()))
             error_code = 413;
-		else if (access(p_rules.upload_store.c_str(), W_OK | X_OK) != 0)
+		else if (access(p_rules.upload_store.c_str(), W_OK | X_OK) != 0 && p_rules.cgi_extension == false)
 				error_code = 403;
     }
     else if (method == "GET")
@@ -266,7 +268,12 @@ void    Request::error_check()
 			else if (access(fullPath.c_str(), R_OK) != 0)
 				error_code = (errno == EACCES) ? 403 : 500;	
 		}
-    }
+		if (raw_request.find(".php") != std::string::npos && p_rules.cgi_extension == false)
+		{
+			std::cout << "erreur php 403\n";
+			error_code = 403;
+		}
+	}
 	else
 	{
 		std::string not_allowed[] = {"HEAD", "PUT", "CONNECT", "OPTIONS", "TRACE", "PATCH"};
@@ -404,12 +411,12 @@ void	Request::set_dir_lst(bool set)
 	dir_lst = set;
 }
 
-t_location	Request::get_path_rules() const
+const t_location	&Request::get_path_rules() const
 {
 	return (p_rules);
 }
 
-ServBlock	Request::get_serv_block() const
+const ServBlock	&Request::get_serv_block() const
 {
 	return (*s_block);
 }
