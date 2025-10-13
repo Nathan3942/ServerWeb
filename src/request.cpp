@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:47:14 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/10/09 17:32:41 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/10/13 09:55:14 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -411,12 +411,12 @@ void	Request::set_dir_lst(bool set)
 	dir_lst = set;
 }
 
-const t_location	&Request::get_path_rules() const
+const t_location	Request::get_path_rules() const
 {
 	return (p_rules);
 }
 
-const ServBlock	&Request::get_serv_block() const
+const ServBlock	Request::get_serv_block() const
 {
 	return (*s_block);
 }

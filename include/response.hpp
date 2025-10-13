@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:48:05 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/09/25 13:19:10 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/10/13 10:00:14 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -58,6 +58,7 @@ class Response
 		int	get_error_status() const;
 		void	close();
 		std::string generate_error_page(int code, const std::string& msg);
+		std::map<int, std::string> get_right_error_page(const Request& req);
 
 		std::string	read_file(const std::string& path);
 		std::string get_content_type(const std::string& path);

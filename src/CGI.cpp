@@ -14,6 +14,16 @@
 
 // CONSTRUCTORS
 
+namespace {
+    void my_usleep(int time)
+    {
+        struct timeval tv;
+        tv.tv_sec = 0;            // secondes
+        tv.tv_usec = time * 1000;   // microsecondes = 50 ms
+        select(0, NULL, NULL, NULL, &tv);
+    }
+}
+
 CGI::CGI(const Request& request, const std::string root) : request(request)
 {
     setup_env_var();
@@ -79,15 +89,31 @@ void CGI::setupAndRun()
 {
     int stdout_pipe[2];
     int stdin_pipe[2];
-    if (pipe(stdout_pipe) < 0 || pipe(stdin_pipe) < 0)
+
+    if (pipe(stdout_pipe) < 0)
         return;
+    if (pipe(stdin_pipe) < 0)
+    {
+        close(stdout_pipe[0]);
+        close(stdout_pipe[1]);
+        return;
+    }
 
     pid_t pid = fork();
+    if (pid < 0)
+    {
+        close(stdout_pipe[0]);
+        close(stdout_pipe[1]);
+        close(stdin_pipe[0]);
+        close(stdin_pipe[1]);
+        return;
+    }
+
     if (pid == 0)
     {
-        // Rediriger stdout vers le pipe d'écriture
+        // Redirige stdout vers pipe d'écriture
         dup2(stdout_pipe[1], STDOUT_FILENO);
-        // Rediriger stdin vers le pipe de lecture
+        // Redirige stdin vers pipe de lecture
         dup2(stdin_pipe[0], STDIN_FILENO);
 
         close(stdout_pipe[0]);
@@ -97,80 +123,80 @@ void CGI::setupAndRun()
 
         chdir("/www/cgi-bin");
 
-        char *argv[] = { const_cast<char*>("/usr/bin/php-cgi"), NULL};
+        char *argv[] = { const_cast<char*>("/usr/bin/php-cgi"), NULL };
         execve("/usr/bin/php-cgi", argv, envp.data());
-        exit(1);
     }
-    else
+
+    close(stdout_pipe[1]);
+    close(stdin_pipe[0]);
+
+    std::string body = request.get_body();
+    if (!body.empty())
+        write(stdin_pipe[1], body.c_str(), body.size());
+    close(stdin_pipe[1]);
+
+    const int TIMEOUT_MS = 5000;    // Timeout global
+    const int POLL_STEP_MS = 100;    // Intervalle poll
+    int elapsed = 0;
+
+    struct pollfd pfd;
+    pfd.fd = stdout_pipe[0];
+    pfd.events = POLLIN | POLLHUP;
+
+    bool timed_out = false;
+    char buffer[4096];
+
+    while (elapsed < TIMEOUT_MS)
     {
-        close(stdout_pipe[1]);
-        close(stdin_pipe[0]);
-
-        std::string body = request.get_body();
-        if (!body.empty())
-            write(stdin_pipe[1], body.c_str(), body.size());
-        close(stdin_pipe[1]);
-
-        const int TIMEOUT_MS = 5000;
-        const int POLL_STEP_MS = 100;
-        const int MAX_ITER = TIMEOUT_MS / POLL_STEP_MS;
-
-        char buffer[4096];
-        struct pollfd pfd;
-        pfd.fd = stdout_pipe[0];
-        pfd.events = POLLIN | POLLHUP;
-
-        bool timed_out = false;
-
-        for (int i = 0; i < MAX_ITER; ++i)
+        int ret = poll(&pfd, 1, POLL_STEP_MS);
+        if (ret > 0)
         {
-            int ret = poll(&pfd, 1, POLL_STEP_MS);
-            if (ret > 0)
+            if (pfd.revents & POLLIN)
             {
-                if (pfd.revents & POLLIN)
-                {
-                    ssize_t bytes = read(stdout_pipe[0], buffer, sizeof(buffer));
-                    if (bytes > 0)
-                        cgiOutput.append(buffer, bytes);
-                    else if (bytes == 0)
-                        break;
-                }
-                else if (pfd.revents & POLLHUP)
-                {
+                ssize_t bytes = read(stdout_pipe[0], buffer, sizeof(buffer));
+                if (bytes > 0)
+                    cgiOutput.append(buffer, bytes);
+                else if (bytes == 0)
                     break;
-                }
             }
-            else if (ret == 0)
+            else if (pfd.revents & POLLHUP)
             {
-                int status;
-                pid_t result = waitpid(pid, &status, WNOHANG);
-                if (result == pid)
-                {
-                    break;
-                }
+                break; // Pipe fermé côté enfant
             }
-            else if (ret < 0 && errno != EINTR)
-            {
-                break;
-            }
+        }
+        else if (ret < 0 && errno != EINTR)
+        {
+            break; // Erreur poll
         }
 
         int status;
         pid_t result = waitpid(pid, &status, WNOHANG);
-        if (result == 0)
+        if (result == pid)
         {
-            kill(pid, SIGKILL);
-            waitpid(pid, &status, 0);
-            timed_out = true;
+            break;
         }
-        close(stdout_pipe[0]);
-        if (timed_out)
-            cgiOutput = "Status: 504 Gateway Timeout\r\nContent-Type: text/plain\r\n\r\nCGI script timed out.";
+        elapsed += POLL_STEP_MS;
     }
+    
+    my_usleep(50); //laisse le temps a l'enfant de _exit() 
+
+    int status;
+    pid_t result = waitpid(pid, &status, WNOHANG);
+    if (result == 0)
+    {
+        kill(pid, SIGKILL);
+        waitpid(pid, &status, 0);
+        timed_out = true;
+    }
+
+    close(stdout_pipe[0]);
+
+    if (timed_out)
+        cgiOutput = "Status: 504 Gateway Timeout\r\nContent-Type: text/plain\r\n\r\nCGI script timed out.";
 }
 
-// PUBLIC METHODES
 
+// PUBLIC METHODES 
 
 
 int CGI::execute()
@@ -244,41 +270,3 @@ void CGI::setup_env_var()
 
 	std::cout << "Content Type : " << content_type << std::endl;
 }
-
-
-/*
-GET /cgi-bin/hello.py?name=Nathan HTTP/1.1
-Host: localhost:8080
-User-Agent: curl/8.0
-Accept:
-
-POST /cgi-bin/form_handler.py HTTP/1.1
-Host: localhost:8080
-Content-Type: application/x-www-form-urlencoded
-Content-Length: 17
-
-username=Nathan42
-*/
-
-/* on doit faire :
-*   definir un get par defaut - prendre celui de la class   FAIT
-*   installer cgi sur la vm                                 FAIT
-*   dire au cgi-d'aller chercher le test.php                FAIT
-*   faire le getReponse - on va analyser la class de nathan FAIT
-*   essayer de l'afficher en legende sur le projet          FAIT
-*/
-
-// GET /cgi-bin/index.php?name=Alice HTTP/1.1
-
-/* dans la request il me faut :
-*   method :            on l'a
-*   query_string : information apres le ? (ex: name=Alice)
-*   script_name : chemin indiquer dans le get ou post (ex: /cgi-bin/index.php)
-*   script_filename : chemin des executables du conf + script_name (ex: www/cgi-bin/index.php)
-*   body :              on l'a
-*   Content_type : variable dans la requete, faut juste la ligne brut comme elle est dans la requete.
-*/
-
-/* infos :
-*   erreur 500 a gerer apres l'exec du cgi :
-*/

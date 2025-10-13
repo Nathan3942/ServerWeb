@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/09 15:11:22 by njeanbou          #+#    #+#             */
-/*   Updated: 2025/10/09 16:18:34 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/10/13 09:54:20 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -251,7 +251,7 @@ std::string ServBlock::get_name() const { return name; }
 std::string ServBlock::get_root() const { return root; }
 int ServBlock::get_client_max_body_size() const { return client_max_body_size; }
 std::vector<std::string> ServBlock::get_index() const { return index; }
-const std::map<int, std::string> &ServBlock::get_error_page() const { return error_page; }
+const std::map<int, std::string> ServBlock::get_error_page() const { return error_page; }
 std::map<std::string, t_location> ServBlock::get_locations() const { return locations; }
 
 ///////LOCATION///////

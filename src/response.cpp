@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:46:56 by njeanbou          #+#    #+#             */
-/*   Updated: 2025/10/09 18:01:24 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/10/13 10:50:16 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -172,42 +172,10 @@ Response::Response(Request& req) : path(req.get_path()), body_cgi(""), _root(req
 				}
 				case 2:
 				{
-					// std::cout << "Error open\n";
-					// const std::map<int, std::string>& error_pages = req.get_serv_block().get_error_page();
-    				// std::map<int, std::string>::const_iterator it = error_pages.find(req.get_error_code());
-					// if (it != error_pages.end())
-					// {
-					// 	std::cout << "Error page " << it->second << std::endl;
-					// 	file.open((req.get_serv_block().get_root() + "/" + it->second).c_str(), std::ios::binary);
-					// 	if (!file.is_open())
-					// 	{
-					// 		std::cout << "Error ouv error file\n";
-					// 		error_status = 4;
-					// 		break;
-					// 	}
-					// 	file.seekg(0, std::ios::end);
-					// 	size = file.tellg();
-					// 	file.seekg(0, std::ios::beg);
-					// 	content_type = get_content_type("/" + it->second);
-					// 	std::ostringstream oss;
-					// 	oss << "HTTP/1.1 " << req.get_error_code() << " " << error_msg[req.get_error_code()] << "\r\n";
-					// 	oss << "Content-Type: " << content_type << "\r\n";
-					// 	oss << "Content-Length: " << size << "\r\n";
-					// 	oss << "Connection: close\r\n\r\n"; //close keep-alive
-					// 	header = oss.str();
-					// 	done = true;
-					// }
-					// error_status = 4;
-					// break;
 					std::cout << "Error open\n";
-					const std::map<int, std::string>* error_pages;
-					if (req.get_path_rules().error_page.empty())
-						error_pages = &req.get_path_rules().error_page;
-					else
-						error_pages = &req.get_serv_block().get_error_page();
-						
-    				std::map<int, std::string>::const_iterator it = error_pages->find(req.get_error_code());
-					if (it != error_pages->end())
+					const std::map<int, std::string> error_pages = get_right_error_page(req);
+    				std::map<int, std::string>::const_iterator it = error_pages.find(req.get_error_code());
+					if (it != error_pages.end())
 					{
 						std::cout << "Error page " << req.get_serv_block().get_root() + it->second << std::endl;
 						file.open((req.get_serv_block().get_root() + it->second).c_str(), std::ios::binary);
@@ -217,7 +185,6 @@ Response::Response(Request& req) : path(req.get_path()), body_cgi(""), _root(req
 							error_status = 4;
 							break;
 						}
-						std::cout << "Ouverture erreur reussi\n";
 						file.seekg(0, std::ios::end);
 						size = file.tellg();
 						file.seekg(0, std::ios::beg);
@@ -229,6 +196,7 @@ Response::Response(Request& req) : path(req.get_path()), body_cgi(""), _root(req
 						oss << "Connection: close\r\n\r\n"; //close keep-alive
 						header = oss.str();
 						done = true;
+						break;
 					}
 					error_status = 4;
 					break;
@@ -357,6 +325,16 @@ void	Response::close()
 {
 	if (file.is_open())
 		file.close();
+}
+
+std::map<int, std::string> Response::get_right_error_page(const Request& req)
+{
+	std::map<int, std::string> error_page = req.get_path_rules().error_page;
+	if (error_page.empty())
+	{
+		error_page = req.get_serv_block().get_error_page();
+	}
+	return (error_page);
 }
 
 bool	Response::has_more_data() const

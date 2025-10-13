@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/09/25 12:00:03 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/10/09 16:11:20 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/10/13 09:54:22 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -100,7 +100,7 @@ class ServBlock {
         std::string get_root() const;
         int get_client_max_body_size() const;
         std::vector<std::string> get_index() const;
-        const std::map<int, std::string> &get_error_page() const;
+        const std::map<int, std::string> get_error_page() const;
         std::map<std::string, t_location> get_locations() const;
 
 

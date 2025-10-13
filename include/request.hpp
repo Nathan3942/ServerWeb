@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:47:33 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/10/09 16:04:22 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/10/13 09:55:11 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -66,8 +66,8 @@ class Request
         std::string get_body() const;
 		int	get_error_code() const;
         CGI *get_cgi() const;
-        const t_location &get_path_rules() const;
-        const ServBlock   &get_serv_block() const;
+        const t_location get_path_rules() const;
+        const ServBlock   get_serv_block() const;
         bool    get_dir_lst() const;
 
 
