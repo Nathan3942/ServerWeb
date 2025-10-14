@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:47:14 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/10/14 12:45:47 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/10/14 17:48:38 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -244,14 +244,20 @@ void    Request::error_check()
     }
     else if (method == "POST")
     {
-		if (raw_request.find(".php") != std::string::npos && p_rules.cgi_extension == false)
+		if (raw_request.find(".php") != std::string::npos && p_rules.cgi_extension == false && raw_request.find("favicon.ico") == std::string::npos)
+		{	
 			error_code = 403;
+			std::cout << "err post 1\n";
+		}
 		if (raw_request.find("Content-Length") == std::string::npos)
     	    error_code = 411;
         else if (body.size() > static_cast<size_t>(s_block->get_client_max_body_size()))
             error_code = 413;
-		else if (access(p_rules.upload_store.c_str(), W_OK | X_OK) != 0 && raw_request.find(".php") != std::string::npos)
-				error_code = 403;
+		else if (access(p_rules.upload_store.c_str(), W_OK | X_OK) != 0 && raw_request.find(".php") != std::string::npos && raw_request.find("favicon.ico") == std::string::npos)
+		{
+			error_code = 403;
+			std::cout << "err post 2\n";
+		}
     }
     else if (method == "GET")
     {
@@ -268,7 +274,7 @@ void    Request::error_check()
 			else if (access(fullPath.c_str(), R_OK) != 0)
 				error_code = (errno == EACCES) ? 403 : 500;	
 		}
-		if (raw_request.find(".php") != std::string::npos && p_rules.cgi_extension == false)
+		if (raw_request.find(".php") != std::string::npos && p_rules.cgi_extension == false && raw_request.find("favicon.ico") == std::string::npos)
 		{
 			std::cout << "erreur php 403\n";
 			error_code = 403;
