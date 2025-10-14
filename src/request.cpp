@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:47:14 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/10/13 09:55:14 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/10/14 12:45:47 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -250,7 +250,7 @@ void    Request::error_check()
     	    error_code = 411;
         else if (body.size() > static_cast<size_t>(s_block->get_client_max_body_size()))
             error_code = 413;
-		else if (access(p_rules.upload_store.c_str(), W_OK | X_OK) != 0 && p_rules.cgi_extension == false)
+		else if (access(p_rules.upload_store.c_str(), W_OK | X_OK) != 0 && raw_request.find(".php") != std::string::npos)
 				error_code = 403;
     }
     else if (method == "GET")
