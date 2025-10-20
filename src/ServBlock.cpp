@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/09 15:11:22 by njeanbou          #+#    #+#             */
-/*   Updated: 2025/10/13 09:54:20 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/10/20 18:17:49 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -223,6 +223,8 @@ int ServBlock::parse_ServBlock(std::ifstream &fd) {
             value.erase(value.find_last_not_of(" \t\"") + 1);
             if (key == "error_page")
                 parse_error_page(value, error_page);
+            else if (key == "listen")
+                server[key] += ' ' + value;
             else
                 server[key] = value;
         }

@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:58:45 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/10/09 16:33:26 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/10/20 18:09:28 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -51,6 +51,10 @@ int main(int ac, char **av)
     catch(const std::exception& e)
     {
         std::cerr << e.what() << '\n';
+        // if (global_server->get_conf())
+        //     delete global_server->get_conf();
+        // if (global_server)
+        //     global_server->shutdown();
         return (1);
     }
     return (0);

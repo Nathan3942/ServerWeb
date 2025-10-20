@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:17:59 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/10/01 16:27:02 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/10/20 18:05:59 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -68,4 +68,6 @@ class Server
         bool    is_listen_socket(int fd) const;
         ssize_t send_all(Connexion &conn, const char* buf, size_t len);
         void    shutdown();
+
+        Config* get_conf() const;
 };

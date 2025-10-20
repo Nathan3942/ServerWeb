@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:18:38 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/10/20 16:28:41 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/10/20 18:20:24 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,14 +14,13 @@
 
 Server::Server(const char* _conf) : isRunning(false)
 {
-	//change_host();
-	std::cout << "Debut config" << std::endl;
 	conf = new Config(_conf);
-	
 	epoll_fd = epoll_create1(0);
 	if (epoll_fd == -1)
 	{
-		throw std::runtime_error("epoll_creat1: can't creat\n");
+		std::cerr << "epoll_creat1: can't creat\n";
+		delete conf;
+		shutdown();
 	}
 
 	for (size_t i = 0; i < conf->get_port().size(); ++i)
@@ -30,7 +29,9 @@ Server::Server(const char* _conf) : isRunning(false)
 		int server_fd = socket(AF_INET, SOCK_STREAM, 0);
 		if (server_fd < 0)
 		{
-			throw std::runtime_error("socket: can't set socket\n");
+			std::cerr << "socket: can't set socket\n";
+			delete conf;
+			shutdown();
 		}
 
 		int opt = 1;
@@ -54,12 +55,16 @@ Server::Server(const char* _conf) : isRunning(false)
 
 		if (bind(server_fd, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0)
 		{
-			throw std::runtime_error("bind: Permission denied\n");
+			std::cerr << "Bind: Permission denied\n";
+			delete conf;
+			shutdown();
 		}
 
 		if (listen(server_fd, 5) < 0)
 		{
-			throw std::runtime_error("listen: can't listen fd\n");
+			std::cerr << "listen: can't listen fd\n";
+			delete conf;
+			shutdown();
 		}
 
 		struct epoll_event ev;
@@ -68,7 +73,9 @@ Server::Server(const char* _conf) : isRunning(false)
 
 		if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, server_fd, &ev) == -1)
 		{
-			throw std::runtime_error("epoll_ctl: listen socket\n");
+			std::cerr << "epoll_ctl: listen socket\n";
+			delete conf;
+			shutdown();
 		}
 
 		sockets.push_back(server_fd);
@@ -162,18 +169,33 @@ void	Server::accept_connection(int listen_fd)
 void Server::start()
 {
 	const int max_events = 100;
+	const int EPOLL_TIMOUT_MS = 10000;
 	struct epoll_event events[max_events];
 	isRunning = true;
 
 	while (isRunning)
 	{
 		// std::cout << "Debut de boucle\nEvent : ";
-		int nfds = epoll_wait(epoll_fd, events, max_events, -1);
+		int nfds = epoll_wait(epoll_fd, events, max_events, EPOLL_TIMOUT_MS);
 		if (nfds == -1)
 		{
 			if (errno == EINTR)
         		continue;
 			std::cerr << "epoll_wait: Error\n";
+			continue;
+		}
+
+		if (nfds == 0)
+		{
+			for (std::map<int, Connexion*>::iterator it = clients.begin(); it != clients.end(); )
+			{
+				Connexion* conn = it->second;
+				std::cout << "Closing connection: fd=" << conn->get_fd() << " for timeout" << std::endl;
+				epoll_ctl(epoll_fd, EPOLL_CTL_DEL, conn->get_fd(), NULL);
+				close(conn->get_fd());
+				delete conn;
+				clients.erase(it++);
+			}
 			continue;
 		}
 
@@ -288,4 +310,10 @@ void Server::start()
 			}
 		}
 	}
+}
+
+
+Config* Server::get_conf() const
+{
+	return (conf);
 }
