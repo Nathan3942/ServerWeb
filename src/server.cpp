@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:18:38 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/10/01 17:21:15 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/10/20 16:28:41 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,8 +21,7 @@ Server::Server(const char* _conf) : isRunning(false)
 	epoll_fd = epoll_create1(0);
 	if (epoll_fd == -1)
 	{
-		std::cerr << "epoll_creat1: can't creat\n";
-		exit(1);
+		throw std::runtime_error("epoll_creat1: can't creat\n");
 	}
 
 	for (size_t i = 0; i < conf->get_port().size(); ++i)
@@ -31,8 +30,7 @@ Server::Server(const char* _conf) : isRunning(false)
 		int server_fd = socket(AF_INET, SOCK_STREAM, 0);
 		if (server_fd < 0)
 		{
-			std::cerr << "socket: can't set socket\n";
-			exit(1);
+			throw std::runtime_error("socket: can't set socket\n");
 		}
 
 		int opt = 1;
@@ -44,8 +42,7 @@ Server::Server(const char* _conf) : isRunning(false)
 
 		if (set_nonblocking(server_fd) == -1)
 		{
-			std::cerr << "set_nonblocking: can't set\n";
-			exit(1);
+			throw std::runtime_error("set_nonblocking: can't set\n");
 		}
 
 		struct sockaddr_in serverAddr;
@@ -57,14 +54,12 @@ Server::Server(const char* _conf) : isRunning(false)
 
 		if (bind(server_fd, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0)
 		{
-			std::cerr << "bind: Permission denied\n";
-			exit(1);
+			throw std::runtime_error("bind: Permission denied\n");
 		}
 
 		if (listen(server_fd, 5) < 0)
 		{
-			std::cerr << "listen: can't listen fd\n";
-			exit(1);
+			throw std::runtime_error("listen: can't listen fd\n");
 		}
 
 		struct epoll_event ev;
@@ -73,8 +68,7 @@ Server::Server(const char* _conf) : isRunning(false)
 
 		if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, server_fd, &ev) == -1)
 		{
-			std::cerr << "epoll_ctl: listen socket\n";
-			exit(1);
+			throw std::runtime_error("epoll_ctl: listen socket\n");
 		}
 
 		sockets.push_back(server_fd);
@@ -177,7 +171,6 @@ void Server::start()
 		int nfds = epoll_wait(epoll_fd, events, max_events, -1);
 		if (nfds == -1)
 		{
-			//!\\/
 			if (errno == EINTR)
         		continue;
 			std::cerr << "epoll_wait: Error\n";
@@ -238,7 +231,6 @@ void Server::start()
 					std::vector<char>& buf = conn->get_write_buffer();
 					size_t total = buf.size();
 					ssize_t sent = send(fd, &buf[conn->get_bytes_sent()], total - conn->get_bytes_sent(), 0);
-					//std::cout << &buf[conn.get_bytes_sent()] << std::endl;
 					if (sent < 0)
 					{
 						std::cerr << "send error\n";
@@ -263,8 +255,6 @@ void Server::start()
 							else
 							{
 								res->close();
-								// delete res;
-								// conn->set_response(NULL);
 								conn->set_state(CLOSED);
 								break;
 							}
@@ -290,43 +280,12 @@ void Server::start()
 			// close les fd
 			if (conn->get_state() == CLOSED)
 			{
-				// if (conn->get_response())
-				// {
-				// 	conn->get_response()->close();
-				// 	// delete conn->get_response();
-				// }
 				std::cout << "Closing connection: fd=" << fd << std::endl;
 				epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
 				close(fd);
 				delete conn;
 				clients.erase(fd);
 			}
-			
-			// std::cout << "Fin de boucle\n";
 		}
 	}
 }
-
-
-// void	Server::change_host()
-// {
-// 	std::string host_name = "kaka.com";
-// 	std::ofstream host_file("/etc/hosts", std::ios::app);
-// 	std::ifstream host_file2("/etc/hosts");
-// 	if (!host_file)
-// 	{
-// 		std::cerr << "Impossible d'ouvrir /etc/hosts, permission insuffisante!\n";
-// 		return ;
-// 	}
-// 	std::string line;
-// 	while (getline(host_file2, line))
-// 	{
-// 		if (line.find(host_name) != std::string::npos)
-// 		{
-// 			std::cerr << "Redirection deja effectue!\n";
-// 			return ;
-// 		}
-// 	}
-// 	host_file << "127.0.0.1 " << host_name << "\n";
-// 	host_file.close();
-// }

@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:47:14 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/10/14 17:48:38 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/10/20 15:53:53 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -47,6 +47,7 @@ Request::Request(int client_fd, Config& conf) : cgi(NULL), error_code(200), dir_
     if (raw_request.find(".php") != std::string::npos && raw_request.find("favicon.ico") == std::string::npos && error_code == 200 && p_rules.cgi_extension == true)
     {
 		cgi = new CGI(*this, s_block->get_root());
+		cgi->execute();
 	}
 	if (cgi)
 	{
@@ -67,6 +68,55 @@ Request::~Request()
 {
     if (raw_request.find(".php") != std::string::npos)
         delete cgi;
+}
+
+
+std::string Request::receive_request(int client_fd)
+{
+    const int bufferSize = 8192;
+    char buffer[bufferSize];
+    std::string request;
+    ssize_t bytesRead = 0;
+
+    while (true)
+	{
+        memset(buffer, 0, bufferSize);
+        bytesRead = recv(client_fd, buffer, bufferSize - 1, 0);
+        if (bytesRead <= 0)
+			return ("");
+        request.append(buffer, bytesRead);
+        if (request.find("\r\n\r\n") != std::string::npos)
+			break;
+    }
+
+    if (request.find("POST") != std::string::npos)
+	{
+        size_t header_end = request.find("\r\n\r\n");
+        if (header_end != std::string::npos)
+		{
+            size_t cl_pos = request.find("Content-Length:");
+            if (cl_pos != std::string::npos)
+			{
+                size_t eol = request.find("\r\n", cl_pos);
+                int content_length = atoi(request.substr(cl_pos + 15, eol - (cl_pos + 15)).c_str());
+                size_t available = request.size() - (header_end + 4);
+
+                while (available < (size_t)content_length)
+                {
+                    memset(buffer, 0, bufferSize);
+                    bytesRead = recv(client_fd, buffer, bufferSize - 1, 0);
+                    if (bytesRead <= 0)
+						break;
+                    request.append(buffer, bytesRead);
+                    available = request.size() - (header_end + 4);
+                }
+                body = request.substr(header_end + 4, content_length);
+            }
+        }
+    }
+    raw_request = request;
+    printf("Requête reçue :\n%s\n", request.c_str());
+    return request;
 }
 
 
@@ -103,12 +153,25 @@ int	Request::extract_port()
 }
 
 
+std::string	Request::extract_path(const std::string& raw)
+{
+	std::string path = "/";
+	
+	size_t pos1 = raw.find(method + " ");
+	size_t pos2 = raw.find(" HTTP/");
+	if (pos1 != std::string::npos && pos2 != std::string::npos)
+		path = raw.substr(pos1 + method.length() + 1, pos2 - (method.length() + 1));
+	return (path);
+}
+
+
 t_location	Request::extract_location()
 {
 	std::cerr << "s_block = " << s_block << std::endl;
-if (s_block) {
-    std::cerr << "root = " << s_block->get_root() << std::endl;
-}
+	if (s_block)
+	{
+		std::cerr << "root = " << s_block->get_root() << std::endl;
+	}
 	std::string fullPath = "";
 		fullPath = s_block->get_root() + path;
 	std::map<std::string, t_location> m_rules = s_block->get_locations();
@@ -243,22 +306,18 @@ void    Request::error_check()
 		}
     }
     else if (method == "POST")
-    {
-		if (raw_request.find(".php") != std::string::npos && p_rules.cgi_extension == false && raw_request.find("favicon.ico") == std::string::npos)
-		{	
+	{
+		if (raw_request.find(".php") != std::string::npos &&
+			p_rules.cgi_extension == false &&
+			raw_request.find("favicon.ico") == std::string::npos)
 			error_code = 403;
-			std::cout << "err post 1\n";
-		}
-		if (raw_request.find("Content-Length") == std::string::npos)
-    	    error_code = 411;
-        else if (body.size() > static_cast<size_t>(s_block->get_client_max_body_size()))
-            error_code = 413;
-		else if (access(p_rules.upload_store.c_str(), W_OK | X_OK) != 0 && raw_request.find(".php") != std::string::npos && raw_request.find("favicon.ico") == std::string::npos)
-		{
+		else if (raw_request.find("Content-Length") == std::string::npos)
+			error_code = 411;
+		else if (body.size() > static_cast<size_t>(s_block->get_client_max_body_size()))
+			error_code = 413;
+		else if (access(p_rules.upload_store.c_str(), W_OK | X_OK) != 0)
 			error_code = 403;
-			std::cout << "err post 2\n";
-		}
-    }
+	}
     else if (method == "GET")
     {
 		if (access(fullPath.c_str(), F_OK) != 0)
@@ -295,7 +354,6 @@ void    Request::error_check()
 		if (error_code != 501)
 			error_code = 400;
 	}
-
 	if (path.size() > MAX_URI_LENGTH)
         error_code = 414;
 }
@@ -316,65 +374,6 @@ void	Request::rules_error(t_location rules)
 }
 
 
-std::string Request::receive_request(int client_fd)
-{
-    const int bufferSize = 8192;
-    char buffer[bufferSize];
-    std::string request;
-    ssize_t bytesRead = 0;
-
-    while (true)
-	{
-        memset(buffer, 0, bufferSize);
-        bytesRead = recv(client_fd, buffer, bufferSize - 1, 0);
-        if (bytesRead <= 0)
-			return ("");
-        request.append(buffer, bytesRead);
-        if (request.find("\r\n\r\n") != std::string::npos)
-			break;
-    }
-
-    if (request.find("POST") != std::string::npos)
-	{
-        size_t header_end = request.find("\r\n\r\n");
-        if (header_end != std::string::npos)
-		{
-            size_t cl_pos = request.find("Content-Length:");
-            if (cl_pos != std::string::npos)
-			{
-                size_t eol = request.find("\r\n", cl_pos);
-                int content_length = atoi(request.substr(cl_pos + 15, eol - (cl_pos + 15)).c_str());
-                size_t available = request.size() - (header_end + 4);
-
-                while (available < (size_t)content_length)
-                {
-                    memset(buffer, 0, bufferSize);
-                    bytesRead = recv(client_fd, buffer, bufferSize - 1, 0);
-                    if (bytesRead <= 0)
-						break;
-                    request.append(buffer, bytesRead);
-                    available = request.size() - (header_end + 4);
-                }
-                body = request.substr(header_end + 4, content_length);
-            }
-        }
-    }
-    raw_request = request;
-    printf("Requête reçue :\n%s\n", request.c_str());
-    return request;
-}
-
-
-std::string	Request::extract_path(const std::string& raw)
-{
-	std::string path = "/";
-	
-	size_t pos1 = raw.find(method + " ");
-	size_t pos2 = raw.find(" HTTP/");
-	if (pos1 != std::string::npos && pos2 != std::string::npos)
-		path = raw.substr(pos1 + method.length() + 1, pos2 - (method.length() + 1));
-	return (path);
-}
 
 
 std::string Request::get_body() const
@@ -407,15 +406,6 @@ CGI *Request::get_cgi() const
     return (cgi);
 }
 
-void	Request::set_error_code(int error)
-{
-	error_code = error;
-}
-
-void	Request::set_dir_lst(bool set)
-{
-	dir_lst = set;
-}
 
 const t_location	Request::get_path_rules() const
 {
@@ -430,5 +420,17 @@ const ServBlock	Request::get_serv_block() const
 bool    Request::get_dir_lst() const
 {
 	return (dir_lst);
+}
+
+
+
+void	Request::set_error_code(int error)
+{
+	error_code = error;
+}
+
+void	Request::set_dir_lst(bool set)
+{
+	dir_lst = set;
 }
 

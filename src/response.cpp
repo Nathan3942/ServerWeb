@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:46:56 by njeanbou          #+#    #+#             */
-/*   Updated: 2025/10/13 10:50:16 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/10/20 15:56:05 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,7 +15,30 @@
 Response::Response(Request& req) : path(req.get_path()), body_cgi(""), _root(req.get_serv_block().get_root()), error_status(0), error_code(200), header_sent(false), error_sent(false), autoindex_sent(false), redir(false)
 {
 	std::cout << "Path : " << path << "\nError code " << req.get_error_code() << "\nDir lst " << req.get_dir_lst() << std::endl;
-	std::streampos size;
+	setup_error_msg();
+
+	if (req.get_path_rules().redirHTTP != "" && std::string(req.get_path_rules().root + req.get_path_rules().redirHTTP) != path)
+	{
+		redir = true;
+		std::cout << "Path " << path << " redir path " << std::string(req.get_path_rules().root + req.get_path_rules().redirHTTP) << std::endl;
+	}
+	std::cout << "Redir = " << redir << std::endl;
+	if (req.get_cgi() && req.get_error_code() == 200)
+        body_cgi = req.get_cgi()->getOutput();
+
+	setup_header(req);
+	setup_error(req);
+	
+	std::cout << "Header : " << header << std::endl;
+}
+
+Response::~Response()
+{
+
+}
+
+void	Response::setup_error_msg()
+{
 	error_msg.clear();
 	error_msg[400] = "Bad Request";
 	error_msg[404] = "Not Found";
@@ -29,16 +52,11 @@ Response::Response(Request& req) : path(req.get_path()), body_cgi(""), _root(req
 	error_msg[502] = "Bad Gateway";
 	error_msg[503] = "Service Unavailable";
 	error_msg[504] = "Gateway Timeout";
+}
 
-	if (req.get_path_rules().redirHTTP != "" && std::string(req.get_path_rules().root + req.get_path_rules().redirHTTP) != path)
-	{
-		redir = true;
-		std::cout << "Path " << path << " redir path " << std::string(req.get_path_rules().root + req.get_path_rules().redirHTTP) << std::endl;
-	}
-	std::cout << "Redir = " << redir << std::endl;
-	if (req.get_cgi() && req.get_error_code() == 200)
-        body_cgi = req.get_cgi()->getOutput();
 
+void	Response::setup_header(Request& req)
+{
 	if (req.get_method() == "POST" && req.get_error_code() == 200)
 	{
 		time_t now = time(0);
@@ -100,7 +118,7 @@ Response::Response(Request& req) : path(req.get_path()), body_cgi(""), _root(req
 					std::cout << "C'est un répertoire !" << std::endl;
 					if (path[path.size() - 1] != '/')
 						path.push_back('/');
-					req.set_error_code(403); // ou activer dir listing
+					req.set_error_code(403);
 				}
 				else if (S_ISREG(s.st_mode))
 				{
@@ -113,13 +131,13 @@ Response::Response(Request& req) : path(req.get_path()), body_cgi(""), _root(req
 						return ;
 					}
 					file.seekg(0, std::ios::end);
-					size = file.tellg();
+					std::streampos size = file.tellg();
 					file.seekg(0, std::ios::beg);
 					std::ostringstream oss;
 					oss << "HTTP/1.1 200 OK\r\n";
 					oss << "Content-Type: " << content_type << "\r\n";
 					oss << "Content-Length: " << size << "\r\n";
-					oss << "Connection: close\r\n\r\n"; //close keep-alive
+					oss << "Connection: close\r\n\r\n";
 					header = oss.str();
 				}
 			}
@@ -130,7 +148,11 @@ Response::Response(Request& req) : path(req.get_path()), body_cgi(""), _root(req
 			}
 		}
 	}
+}
 
+
+void	Response::setup_error(Request& req)
+{
 	if (req.get_error_code() != 200)
 	{
 		bool done = false;
@@ -146,7 +168,6 @@ Response::Response(Request& req) : path(req.get_path()), body_cgi(""), _root(req
 					std::cout << "Header dir lst\n";
 					std::string dirPath = req.get_path();
 
-					// Si path correspond à un fichier, prendre le parent
 					size_t lastSlash = dirPath.find_last_of('/');
 					if (lastSlash != std::string::npos)
 						dirPath = dirPath.substr(0, lastSlash + 1);
@@ -162,7 +183,6 @@ Response::Response(Request& req) : path(req.get_path()), body_cgi(""), _root(req
 						std::ostringstream oss;
 						oss << "HTTP/1.1 200 OK\r\n";
 						oss << "Content-Type: text/html\r\n";
-						// pas de Content-Length mais peut calculer
 						oss << "Connection: close\r\n\r\n";
 						header = oss.str();
 						closedir(dir);
@@ -186,7 +206,7 @@ Response::Response(Request& req) : path(req.get_path()), body_cgi(""), _root(req
 							break;
 						}
 						file.seekg(0, std::ios::end);
-						size = file.tellg();
+						std::streampos size = file.tellg();
 						file.seekg(0, std::ios::beg);
 						content_type = get_content_type("/" + it->second);
 						std::ostringstream oss;
@@ -219,13 +239,8 @@ Response::Response(Request& req) : path(req.get_path()), body_cgi(""), _root(req
 			}
 		}
 	}
-	std::cout << "Header : " << header << std::endl;
 }
 
-Response::~Response()
-{
-
-}
 
 std::vector<char>	Response::get_next_chunk()
 {
@@ -321,26 +336,19 @@ std::vector<char>	Response::get_next_chunk()
 	return (buffer);
 }
 
+
+bool	Response::has_more_data() const
+{
+	return (file && !file.eof());
+}
+
+
 void	Response::close()
 {
 	if (file.is_open())
 		file.close();
 }
 
-std::map<int, std::string> Response::get_right_error_page(const Request& req)
-{
-	std::map<int, std::string> error_page = req.get_path_rules().error_page;
-	if (error_page.empty())
-	{
-		error_page = req.get_serv_block().get_error_page();
-	}
-	return (error_page);
-}
-
-bool	Response::has_more_data() const
-{
-	return (file && !file.eof());
-}
 
 std::string Response::generate_error_page(int code, const std::string& msg)
 {
@@ -351,9 +359,15 @@ std::string Response::generate_error_page(int code, const std::string& msg)
     return oss.str();
 }
 
-int	Response::get_error_status() const
+
+std::map<int, std::string> Response::get_right_error_page(const Request& req)
 {
-	return (error_status);
+	std::map<int, std::string> error_page = req.get_path_rules().error_page;
+	if (error_page.empty())
+	{
+		error_page = req.get_serv_block().get_error_page();
+	}
+	return (error_page);
 }
 
 
@@ -498,3 +512,11 @@ std::string	Response::get_content_type(const std::string& path)
 		return (it->second);
 	return ("application/octet-stream");
 }
+
+
+int	Response::get_error_status() const
+{
+	return (error_status);
+}
+
+

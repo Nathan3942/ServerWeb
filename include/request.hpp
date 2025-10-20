@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:47:33 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/10/13 09:55:11 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/10/20 14:57:54 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -51,6 +51,8 @@ class Request
         Request(int client_fd, Config& conf);
         Request(const Request& copy);
         ~Request();
+
+
         std::string receive_request(int client_fd);
         ServBlock   *extract_block(Config& conf);
         int extract_port();
@@ -69,7 +71,6 @@ class Request
         const t_location get_path_rules() const;
         const ServBlock   get_serv_block() const;
         bool    get_dir_lst() const;
-
 
 
 		void	set_error_code(int error);

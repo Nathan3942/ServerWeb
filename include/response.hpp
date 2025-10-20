@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:48:05 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/10/13 10:00:14 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/10/20 15:56:03 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -23,8 +23,6 @@
 #include <fstream>
 
 #include "server.hpp"
-
-#define WEBROOT "./www"
 
 class Request;
 
@@ -43,29 +41,28 @@ class Response
 		bool	error_sent;
 		bool	autoindex_sent;
 		bool	redir;
-		
 		std::map<int, std::string> error_msg;
-
-		// std::string	content;
-		// std::vector<char> http_response;
 		
 	public:
 		Response(Request& req);
 		~Response();
 
-		bool	has_more_data() const;
+		void	setup_error_msg();
+		void	setup_header(Request& req);
+		void	setup_error(Request& req);
+		
 		std::vector<char> get_next_chunk();
-		int	get_error_status() const;
+		bool	has_more_data() const;
 		void	close();
+
 		std::string generate_error_page(int code, const std::string& msg);
 		std::map<int, std::string> get_right_error_page(const Request& req);
-
-		std::string	read_file(const std::string& path);
-		std::string get_content_type(const std::string& path);
-		std::vector<char> build_reponse(const std::string& body);
-
 		int	set_error_gestion(Request& req);
 		std::string	setRedir(int code, const std::string& location);
+		std::string get_content_type(const std::string& path);
+
+		int	get_error_status() const;
+		
 
 		// const std::vector<char>& get_response() const;
 };

@@ -30,7 +30,6 @@ CGI::CGI(const Request& request, const std::string root) : request(request)
 	script_filename = root + script_name;
 	std::cout << "var env set\n";
 	std::cout << query_string << " " << script_filename << " " << script_name << std::endl;
-	execute();
 }
 
 // CGI::CGI()
@@ -121,7 +120,7 @@ void CGI::setupAndRun()
         close(stdin_pipe[0]);
         close(stdin_pipe[1]);
 
-        chdir("/www/cgi-bin");
+        chdir(request.get_path().c_str());
 
         char *argv[] = { const_cast<char*>("/usr/bin/php-cgi"), NULL };
         execve("/usr/bin/php-cgi", argv, envp.data());

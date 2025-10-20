@@ -45,3 +45,4 @@ header("Content-Type: text/html");
     <pre><?php echo file_get_contents("php://input"); ?></pre>
 </body>
 </html>
+
