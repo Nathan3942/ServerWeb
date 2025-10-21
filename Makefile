@@ -6,7 +6,7 @@
 #    By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2025/06/20 11:10:34 by ichpakov          #+#    #+#              #
-#    Updated: 2025/07/28 16:18:40 by njeanbou         ###   ########.fr        #
+#    Updated: 2025/10/21 15:25:19 by njeanbou         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -32,7 +32,7 @@ OBJS = $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(SRCS))
 #//////////////////////////////////////////////////////////////////////////////
 
 CC = c++
-CXXFLAGS = -Wall -Wextra -Werror -std=c++98 -pedantic -g -fsanitize=address -static-libasan
+CXXFLAGS = -Wall -Wextra -Werror -std=c++98 -pedantic -g -fsanitize=address -static-libsan
 RM = rm -rf
 
 #//////////////////////////////////////////////////////////////////////////////

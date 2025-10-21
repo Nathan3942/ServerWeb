@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:46:56 by njeanbou          #+#    #+#             */
-/*   Updated: 2025/10/20 15:56:05 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/10/21 15:22:19 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,22 +14,14 @@
 
 Response::Response(Request& req) : path(req.get_path()), body_cgi(""), _root(req.get_serv_block().get_root()), error_status(0), error_code(200), header_sent(false), error_sent(false), autoindex_sent(false), redir(false)
 {
-	std::cout << "Path : " << path << "\nError code " << req.get_error_code() << "\nDir lst " << req.get_dir_lst() << std::endl;
 	setup_error_msg();
-
 	if (req.get_path_rules().redirHTTP != "" && std::string(req.get_path_rules().root + req.get_path_rules().redirHTTP) != path)
-	{
 		redir = true;
-		std::cout << "Path " << path << " redir path " << std::string(req.get_path_rules().root + req.get_path_rules().redirHTTP) << std::endl;
-	}
-	std::cout << "Redir = " << redir << std::endl;
 	if (req.get_cgi() && req.get_error_code() == 200)
         body_cgi = req.get_cgi()->getOutput();
 
 	setup_header(req);
 	setup_error(req);
-	
-	std::cout << "Header : " << header << std::endl;
 }
 
 Response::~Response()
@@ -94,10 +86,7 @@ void	Response::setup_header(Request& req)
 	else if (req.get_method() == "GET" && req.get_error_code() == 200)
 	{
 		if (redir == true)
-		{
-			std::cout << "Set header redirection\n";
 			header = setRedir(req.get_path_rules().redirCode, req.get_path_rules().redirHTTP);
-		}
 		else if (req.get_cgi())
 		{
 			std::ostringstream oss;
@@ -106,7 +95,6 @@ void	Response::setup_header(Request& req)
 			oss << "Content-Length: " << req.get_cgi()->getOutput().size() << "\r\n";
 			oss << "Connection: close\r\n\r\n";
 			header = oss.str();
-			std::cout << "CGI output : " << req.get_cgi()->getOutput() << std::endl;
 		}
 		else
 		{
@@ -115,14 +103,12 @@ void	Response::setup_header(Request& req)
 			{
 				if (S_ISDIR(s.st_mode))
 				{
-					std::cout << "C'est un répertoire !" << std::endl;
 					if (path[path.size() - 1] != '/')
 						path.push_back('/');
 					req.set_error_code(403);
 				}
 				else if (S_ISREG(s.st_mode))
 				{
-					std::cout << "C'est un fichier, on peut l'ouvrir" << std::endl;
 					content_type = get_content_type(path);
 					file.open(path.c_str(), std::ios::binary);
 					if (!file.is_open())
@@ -142,10 +128,7 @@ void	Response::setup_header(Request& req)
 				}
 			}
 			else
-			{
 				req.set_error_code(404);
-				std::cout << "Chemin inexistant !" << std::endl;
-			}
 		}
 	}
 }
@@ -158,23 +141,18 @@ void	Response::setup_error(Request& req)
 		bool done = false;
 		while (!done)
 		{
-			std::cout << "Boucle done\n";
 			error_status = set_error_gestion(req);
-
 			switch (error_status)
 			{
 				case 1:
 				{
-					std::cout << "Header dir lst\n";
 					std::string dirPath = req.get_path();
-
 					size_t lastSlash = dirPath.find_last_of('/');
 					if (lastSlash != std::string::npos)
 						dirPath = dirPath.substr(0, lastSlash + 1);
 					DIR *dir = opendir(dirPath.c_str());
 					if (!dir)
 					{
-						std::cout << "Dir lst error 500\n";
 						req.set_error_code(500);
 						req.set_dir_lst(false);
 					}
@@ -192,16 +170,13 @@ void	Response::setup_error(Request& req)
 				}
 				case 2:
 				{
-					std::cout << "Error open\n";
 					const std::map<int, std::string> error_pages = get_right_error_page(req);
     				std::map<int, std::string>::const_iterator it = error_pages.find(req.get_error_code());
 					if (it != error_pages.end())
 					{
-						std::cout << "Error page " << req.get_serv_block().get_root() + it->second << std::endl;
 						file.open((req.get_serv_block().get_root() + it->second).c_str(), std::ios::binary);
 						if (!file.is_open())
 						{
-							std::cout << "Error ouv error file\n";
 							error_status = 4;
 							break;
 						}
@@ -223,7 +198,6 @@ void	Response::setup_error(Request& req)
 				}
 				case 3:
 				{
-					std::cout << "Error code creat : " << req.get_error_code() << std::endl;
 					std::map<int, std::string>::const_iterator it = error_msg.find(req.get_error_code());
 					std::ostringstream oss;
 					oss << "HTTP/1.1 " << req.get_error_code() << " " << it->second << "\r\n";
@@ -232,7 +206,6 @@ void	Response::setup_error(Request& req)
 					oss << "Connection: close\r\n\r\n";
 					header = oss.str();
 					error_code = req.get_error_code();
-					std::cout << "Error code " << error_code << std::endl;
 					done = true;
 					break;
 				}
@@ -260,30 +233,20 @@ std::vector<char>	Response::get_next_chunk()
 			return (buffer);
 		std::string error_body = generate_error_page(error_code, it->second);
 		buffer.insert(buffer.end(), error_body.begin(), error_body.end());
-		std::cout << "Body error\n" << error_body << std::endl;
 		return (buffer);
 	}
 
 	if (!autoindex_sent && error_status == 1)
 	{
-		std::cout << "Rentre dans le autoindex\n";
 		autoindex_sent = true;
 		std::ostringstream body;
-
-		// Si path correspond à un fichier, prendre le dossier parent
 		std::string dirPath = path;
 		size_t lastSlash = dirPath.find_last_of('/');
 		if (lastSlash != std::string::npos)
 			dirPath = dirPath.substr(0, lastSlash + 1);
-		std::cout << "Dirpath : " << dirPath << std::endl;
 		DIR *dir = opendir(dirPath.c_str());
 		if (!dir)
-		{
-			std::cout << "Error!!!\n";
 			return buffer;
-		}
-
-		// chemin public = path sans le root
 		std::string publicPath;
 		if (dirPath.find(_root) == 0)
 			publicPath = dirPath.substr(_root.size());
@@ -307,8 +270,6 @@ std::vector<char>	Response::get_next_chunk()
 			std::string name = entry->d_name;
 			if (name == "." || name == "..")
 				continue;
-
-			// lien public : juste le nom du fichier, pas le root
 			body << "<li><a href=\"/" << dir_path << name << "\">" << name << "</a></li>\n";
 		}
 		body << "</ul>\n</body>\n</html>\n";
@@ -373,12 +334,8 @@ std::map<int, std::string> Response::get_right_error_page(const Request& req)
 
 int	Response::set_error_gestion(Request& req)
 {
-	std::cout << "Set error gestion, error code = " << error_status << std::endl;
 	if (req.get_path_rules().directory_listing == true && redir == false && req.get_dir_lst() == true)
-	{
-		std::cout << "set error redir\n";
 		return (1);
-	}
 
 	std::map<int, std::string> err_page = req.get_serv_block().get_error_page();
 	std::map<int, std::string>::iterator it = err_page.find(req.get_error_code());

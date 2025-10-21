@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:47:14 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/10/20 15:53:53 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/10/21 15:18:14 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,10 +22,7 @@ Request::Request(int client_fd, Config& conf) : cgi(NULL), error_code(200), dir_
 {
 	raw_request = receive_request(client_fd);
 	if (raw_request.empty())
-	{
-		std::cout << "Requete vide!!!\n";
 		return;
-	}
 	if (raw_request.find("DELETE") != std::string::npos)
 		method = "DELETE";
 	else if (raw_request.find("POST") != std::string::npos)
@@ -38,11 +35,8 @@ Request::Request(int client_fd, Config& conf) : cgi(NULL), error_code(200), dir_
 	}
 	s_block = extract_block(conf);
 	path = extract_path(raw_request);
-	std::cout << "Path extraite de la requete : " << path << std::endl;
 	p_rules = extract_location();
-	std::cout << "Loca contenu : \nLoc : " << p_rules.loc << "\nAllow method : " << p_rules.allow_methods << "\nRedir http + code " << p_rules.redirHTTP << p_rules.redirCode << "\nRoot : " << p_rules.root << std::endl;
 	setup_full_path();
-	std::cout << "Path " << path << "\nMethode " << method << std::endl;
     error_check();
     if (raw_request.find(".php") != std::string::npos && raw_request.find("favicon.ico") == std::string::npos && error_code == 200 && p_rules.cgi_extension == true)
     {
@@ -115,7 +109,6 @@ std::string Request::receive_request(int client_fd)
         }
     }
     raw_request = request;
-    printf("Requête reçue :\n%s\n", request.c_str());
     return request;
 }
 
@@ -125,14 +118,12 @@ ServBlock   *Request::extract_block(Config& conf)
 	int	port;
 
 	port = extract_port();
-	std::cout << "Port extrait : " << port << std::endl;
 	return (conf.get_block_from_port(port));
 }
 
 
 int	Request::extract_port()
 {
-	std::cout << "Raw request : " << raw_request << std::endl;
 	std::string hostKey = "Host:";
 	size_t pos1 = raw_request.find(hostKey);
 	if (pos1 == std::string::npos)
@@ -167,17 +158,11 @@ std::string	Request::extract_path(const std::string& raw)
 
 t_location	Request::extract_location()
 {
-	std::cerr << "s_block = " << s_block << std::endl;
-	if (s_block)
-	{
-		std::cerr << "root = " << s_block->get_root() << std::endl;
-	}
 	std::string fullPath = "";
 		fullPath = s_block->get_root() + path;
 	std::map<std::string, t_location> m_rules = s_block->get_locations();
 	std::string root = path;
 	t_location rules;
-	std::cout << "Path " << path << " Fullpath " << fullPath << std::endl;
 	while (!root.empty())
 	{
 		std::map<std::string, t_location>::iterator it = m_rules.find(root);
@@ -193,10 +178,7 @@ t_location	Request::extract_location()
 			{
 				it = m_rules.find("/");
 				if (it != m_rules.end())
-				{
 					rules = it->second;
-					std::cout << "Trouve la loca\n";
-				}
 			}
 			break;
 		}
@@ -216,8 +198,6 @@ void Request::setup_full_path()
 {
     if (!p_rules.loc.empty())
     {
-		std::cout << "Setup full path avec loca\n";
-		std::cout << "Path : " << path << " Loc : " << p_rules.loc << " Root : " << p_rules.root << std::endl;
         size_t pos_alias = path.find(p_rules.loc);
         if (pos_alias != std::string::npos)
         {
@@ -240,7 +220,6 @@ void Request::setup_full_path()
 
 		if (path == "/" || path[path.size() - 1] == '/')
 		{
-			std::cout << "Ajout index\n";
 			if (p_rules.index.empty())
 			{
 				for (size_t i = 0; i < s_block->get_index().size(); ++i)
@@ -259,13 +238,11 @@ void Request::setup_full_path()
 					if (file_existe(path + p_rules.index[i]))
 					{
 						path = path + p_rules.index[i];
-						std::cout << "Path : " << path << " Index : " << p_rules.index[i] << std::endl;
 						break;
 					}
 				}
 			}
 		}
-		std::cout << "Nouvelle path apres index et alias : " << path << std::endl;
     }
     else
     {
@@ -321,10 +298,7 @@ void    Request::error_check()
     else if (method == "GET")
     {
 		if (access(fullPath.c_str(), F_OK) != 0)
-		{
-			std::cout << "Error 404 catch\n";
 			error_code = 404;
-		}
 		else
 		{
 			std::string dirPath = fullPath.substr(0, fullPath.find_last_of('/'));
@@ -334,10 +308,7 @@ void    Request::error_check()
 				error_code = (errno == EACCES) ? 403 : 500;	
 		}
 		if (raw_request.find(".php") != std::string::npos && p_rules.cgi_extension == false && raw_request.find("favicon.ico") == std::string::npos)
-		{
-			std::cout << "erreur php 403\n";
 			error_code = 403;
-		}
 	}
 	else
 	{
@@ -361,7 +332,6 @@ void    Request::error_check()
 
 void	Request::rules_error(t_location rules)
 {
-	std::cout << "Rules path " << rules.loc << std::endl;
 	if (rules.allow_methods.find(method) == std::string::npos && !rules.allow_methods.empty())
 	{
 		error_code = 405;

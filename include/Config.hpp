@@ -32,7 +32,6 @@ class Config {
 
         int	parse_config();
 		std::vector<int> collect_all_ports();
-        void	print();
     //getters
         std::map<std::string, ServBlock> get_servers() const { return servers; }
         std::map<int, std::string> get_port_serverName() const { return port_serverName; }

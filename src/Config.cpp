@@ -19,7 +19,6 @@ Config::Config(const char *str) : file_name(str)
 {
     parse_config();
 	port = collect_all_ports();
-	print();
 }
 
 Config::~Config()
@@ -90,12 +89,3 @@ ServBlock *Config::get_block_from_port(int port)
 }
 
 
-void Config::print() {
-    std::cout << servers["localhost"] << std::endl;
-    // std::cout << "////////////////////" << std::endl;
-    // std::cout << servers["ilia"] << std::endl << std::endl;
-    // std::cout << "////////////////////" << std::endl << std::endl;
-    // std::cout << port_serverName[8080] << std::endl;
-    // std::cout << port_serverName[8000] << std::endl;
-    // std::cout << port_serverName[40] << std::endl;
-}

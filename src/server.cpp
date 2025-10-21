@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:18:38 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/10/20 18:20:24 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/10/21 15:24:21 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,7 +25,6 @@ Server::Server(const char* _conf) : isRunning(false)
 
 	for (size_t i = 0; i < conf->get_port().size(); ++i)
 	{
-		std::cout << "Port : " << conf->get_port()[i] << std::endl;
 		int server_fd = socket(AF_INET, SOCK_STREAM, 0);
 		if (server_fd < 0)
 		{
@@ -175,7 +174,6 @@ void Server::start()
 
 	while (isRunning)
 	{
-		// std::cout << "Debut de boucle\nEvent : ";
 		int nfds = epoll_wait(epoll_fd, events, max_events, EPOLL_TIMOUT_MS);
 		if (nfds == -1)
 		{
@@ -217,17 +215,14 @@ void Server::start()
 			// Lecture de la requête
 			if (events[i].events & EPOLLIN)
 			{
-				std::cout << "Nouvelle requete:" << std::endl;
 				Request req(fd, *conf);
 
 				if (req.get_raw_request().empty())
 				{
-					std::cout << "La requete est vide, passe la state en closed\n";
 					conn->set_state(CLOSED);
 				}
 				else if (req.get_raw_request().find("\r\n\r\n") != std::string::npos)
 				{
-					std::cout << "fin de fichier" << std::endl;
 					Response* res = new Response(req);
 					conn->set_response(res);
 					conn->set_write_buffer(res->get_next_chunk());
