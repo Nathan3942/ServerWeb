@@ -20,7 +20,7 @@ Server::Server(const char* _conf) : isRunning(false)
 	{
 		std::cerr << "epoll_creat1: can't creat\n";
 		delete conf;
-		shutdown();
+		shutdown(1);
 	}
 
 	for (size_t i = 0; i < conf->get_port().size(); ++i)
@@ -30,7 +30,7 @@ Server::Server(const char* _conf) : isRunning(false)
 		{
 			std::cerr << "socket: can't set socket\n";
 			delete conf;
-			shutdown();
+			shutdown(1);
 		}
 
 		int opt = 1;
@@ -42,7 +42,9 @@ Server::Server(const char* _conf) : isRunning(false)
 
 		if (set_nonblocking(server_fd) == -1)
 		{
-			throw std::runtime_error("set_nonblocking: can't set\n");
+			std::cerr << "set_nonblocking: can't set\n";
+			delete conf;
+			shutdown(1);
 		}
 
 		struct sockaddr_in serverAddr;
@@ -56,14 +58,14 @@ Server::Server(const char* _conf) : isRunning(false)
 		{
 			std::cerr << "Bind: Permission denied\n";
 			delete conf;
-			shutdown();
+			shutdown(1);
 		}
 
 		if (listen(server_fd, 5) < 0)
 		{
 			std::cerr << "listen: can't listen fd\n";
 			delete conf;
-			shutdown();
+			shutdown(1);
 		}
 
 		struct epoll_event ev;
@@ -74,7 +76,7 @@ Server::Server(const char* _conf) : isRunning(false)
 		{
 			std::cerr << "epoll_ctl: listen socket\n";
 			delete conf;
-			shutdown();
+			shutdown(1);
 		}
 
 		sockets.push_back(server_fd);
@@ -97,7 +99,7 @@ void	Server::close_socket()
 }
 
 
-void Server::shutdown()
+void Server::shutdown(int exit_status)
 {
     std::cout << "\nShutting down server..." << std::endl;
 
@@ -114,6 +116,8 @@ void Server::shutdown()
         close(epoll_fd);
 
     isRunning = false;
+	if (exit_status == 1)
+		throw std::runtime_error("");
 }
 
 

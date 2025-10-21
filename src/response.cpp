@@ -14,6 +14,7 @@
 
 Response::Response(Request& req) : path(req.get_path()), body_cgi(""), _root(req.get_serv_block().get_root()), error_status(0), error_code(200), header_sent(false), error_sent(false), autoindex_sent(false), redir(false)
 {
+	std::cout << "PATH : " << path << "\nMethod " << req.get_method() << std::endl;
 	setup_error_msg();
 	if (req.get_path_rules().redirHTTP != "" && std::string(req.get_path_rules().root + req.get_path_rules().redirHTTP) != path)
 		redir = true;
@@ -136,6 +137,7 @@ void	Response::setup_header(Request& req)
 
 void	Response::setup_error(Request& req)
 {
+	std::cout << "error : " << req.get_error_code() << std::endl;
 	if (req.get_error_code() != 200)
 	{
 		bool done = false;
@@ -212,6 +214,7 @@ void	Response::setup_error(Request& req)
 			}
 		}
 	}
+	std::cout << "Error status : " << error_status << std::endl;
 }
 
 
@@ -252,10 +255,9 @@ std::vector<char>	Response::get_next_chunk()
 			publicPath = dirPath.substr(_root.size());
 		else
 			publicPath = dirPath;
-
 		if (!publicPath.empty() && publicPath[publicPath.size() - 1] != '/')
     		publicPath += '/';
-
+		
 		body << "<!DOCTYPE html>\n<html>\n<head>\n";
 		body << "<meta charset=\"UTF-8\">\n";
 		body << "<title>Index of " << publicPath << "</title>\n";
@@ -273,7 +275,7 @@ std::vector<char>	Response::get_next_chunk()
 			body << "<li><a href=\"/" << dir_path << name << "\">" << name << "</a></li>\n";
 		}
 		body << "</ul>\n</body>\n</html>\n";
-
+		
 		closedir(dir);
 
 		std::string body_str = body.str();
@@ -336,13 +338,11 @@ int	Response::set_error_gestion(Request& req)
 {
 	if (req.get_path_rules().directory_listing == true && redir == false && req.get_dir_lst() == true)
 		return (1);
-
 	std::map<int, std::string> err_page = req.get_serv_block().get_error_page();
 	std::map<int, std::string>::iterator it = err_page.find(req.get_error_code());
 	if (it != req.get_serv_block().get_error_page().end() && error_status != 4)
 		return (2);
-	else
-		return (3);
+	return (3);
 }
 
 static std::string toString(size_t n)

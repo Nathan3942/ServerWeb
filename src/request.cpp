@@ -222,6 +222,7 @@ void Request::setup_full_path()
 		{
 			if (p_rules.index.empty())
 			{
+				std::cout << "lala\n";
 				for (size_t i = 0; i < s_block->get_index().size(); ++i)
 				{
 					if (file_existe(path + s_block->get_index()[i]))
@@ -247,7 +248,7 @@ void Request::setup_full_path()
     else
     {
         path.insert(0, s_block->get_root());
-		if (path == "/")
+		if (path == "/" || path[path.size() - 1] == '/')
 		{
 			for (size_t i = 0; i < s_block->get_index().size(); ++i)
 			{
@@ -284,9 +285,8 @@ void    Request::error_check()
     }
     else if (method == "POST")
 	{
-		if (raw_request.find(".php") != std::string::npos &&
-			p_rules.cgi_extension == false &&
-			raw_request.find("favicon.ico") == std::string::npos)
+		std::string first_line = raw_request.substr(0, raw_request.find("\r\n"));
+		if (first_line.find(".php") != std::string::npos && p_rules.cgi_extension == false)
 			error_code = 403;
 		else if (raw_request.find("Content-Length") == std::string::npos)
 			error_code = 411;
@@ -307,7 +307,8 @@ void    Request::error_check()
 			else if (access(fullPath.c_str(), R_OK) != 0)
 				error_code = (errno == EACCES) ? 403 : 500;	
 		}
-		if (raw_request.find(".php") != std::string::npos && p_rules.cgi_extension == false && raw_request.find("favicon.ico") == std::string::npos)
+		std::string first_line = raw_request.substr(0, raw_request.find("\r\n"));
+		if (first_line.find(".php") != std::string::npos && p_rules.cgi_extension == false)
 			error_code = 403;
 	}
 	else

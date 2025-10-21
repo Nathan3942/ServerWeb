@@ -10,12 +10,14 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#pragma once
-#include <string>
-#include <vector>
-#include <map>
+#ifndef LOCATION_HPP
+#define LOCATION_HPP
 
-typedef struct 
+#include <string>
+#include <map>
+#include <vector>
+
+struct t_location
 {
     std::string loc;
     std::string allow_methods;
@@ -28,4 +30,20 @@ typedef struct
     bool cgi_extension;
     std::map<int, std::string> error_page;
     std::vector<std::string> index;
-}   t_location;
+
+    t_location()
+        : loc(""),
+          allow_methods(""),
+          redirCode(0),
+          redirHTTP(""),
+          root(""),
+          upload_store(""),
+          directory_listing(false),
+          upload_enable(false),
+          cgi_extension(false),
+          error_page(),
+          index()
+    {}
+};
+
+#endif

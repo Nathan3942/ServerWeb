@@ -32,7 +32,7 @@ OBJS = $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(SRCS))
 #//////////////////////////////////////////////////////////////////////////////
 
 CC = c++
-CXXFLAGS = -Wall -Wextra -Werror -std=c++98 -pedantic -g -fsanitize=address -static-libsan
+CXXFLAGS = -Wall -Wextra -Werror -std=c++98 #-pedantic -g -fsanitize=address -static-libsan
 RM = rm -rf
 
 #//////////////////////////////////////////////////////////////////////////////

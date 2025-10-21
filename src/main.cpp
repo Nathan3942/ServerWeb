@@ -18,7 +18,7 @@ void	signal_handler(int signal)
 {
 	if (signal == SIGINT && global_server)
 	{
-		global_server->shutdown();
+		global_server->shutdown(0);
 	}
 }
 

@@ -67,7 +67,7 @@ class Server
         void    accept_connection(int listen_fd);
         bool    is_listen_socket(int fd) const;
         ssize_t send_all(Connexion &conn, const char* buf, size_t len);
-        void    shutdown();
+        void    shutdown(int exit_status);
 
         Config* get_conf() const;
 };
