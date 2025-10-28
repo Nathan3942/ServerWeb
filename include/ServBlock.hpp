@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/09/25 12:00:03 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/10/13 09:54:22 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/10/28 15:05:36 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -95,7 +95,7 @@ class ServBlock {
         int parse_ServBlock(std::ifstream &fd);
 
         //getters
-        std::vector<int> get_port() const; 
+        std::vector<int> get_port() const;
         std::string get_name() const;
         std::string get_root() const;
         int get_client_max_body_size() const;

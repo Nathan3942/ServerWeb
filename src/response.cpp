@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:46:56 by njeanbou          #+#    #+#             */
-/*   Updated: 2025/10/21 15:22:19 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/10/28 14:50:16 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -221,6 +221,7 @@ void	Response::setup_error(Request& req)
 std::vector<char>	Response::get_next_chunk()
 {
 	std::vector<char> buffer;
+	std::cout << "autoindex " << autoindex_sent << std::endl;
 	if (!header_sent)
 	{
 		header_sent = true;
@@ -241,6 +242,7 @@ std::vector<char>	Response::get_next_chunk()
 
 	if (!autoindex_sent && error_status == 1)
 	{
+		std::cout << "lala\n";
 		autoindex_sent = true;
 		std::ostringstream body;
 		std::string dirPath = path;

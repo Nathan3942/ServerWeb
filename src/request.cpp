@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:47:14 by ichpakov          #+#    #+#             */
-/*   Updated: 2025/10/21 15:18:14 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/10/28 14:45:04 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -38,7 +38,8 @@ Request::Request(int client_fd, Config& conf) : cgi(NULL), error_code(200), dir_
 	p_rules = extract_location();
 	setup_full_path();
     error_check();
-    if (raw_request.find(".php") != std::string::npos && raw_request.find("favicon.ico") == std::string::npos && error_code == 200 && p_rules.cgi_extension == true)
+	std::string first_line = raw_request.substr(0, raw_request.find("\r\n"));
+    if (first_line.find(".php") != std::string::npos && error_code == 200 && p_rules.cgi_extension == true)
     {
 		cgi = new CGI(*this, s_block->get_root());
 		cgi->execute();
@@ -222,7 +223,6 @@ void Request::setup_full_path()
 		{
 			if (p_rules.index.empty())
 			{
-				std::cout << "lala\n";
 				for (size_t i = 0; i < s_block->get_index().size(); ++i)
 				{
 					if (file_existe(path + s_block->get_index()[i]))
