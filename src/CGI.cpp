@@ -134,7 +134,7 @@ void CGI::setupAndRun()
         write(stdin_pipe[1], body.c_str(), body.size());
     close(stdin_pipe[1]);
 
-    const int TIMEOUT_MS = 5000;    // Timeout global
+    const int TIMEOUT_MS = 2000;    // Timeout global
     const int POLL_STEP_MS = 100;    // Intervalle poll
     int elapsed = 0;
 

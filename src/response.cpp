@@ -6,7 +6,7 @@
 /*   By: njeanbou <njeanbou@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/20 11:46:56 by njeanbou          #+#    #+#             */
-/*   Updated: 2025/10/28 14:50:16 by njeanbou         ###   ########.fr       */
+/*   Updated: 2025/10/28 16:57:38 by njeanbou         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -23,6 +23,7 @@ Response::Response(Request& req) : path(req.get_path()), body_cgi(""), _root(req
 
 	setup_header(req);
 	setup_error(req);
+	std::cout << "Header :\n" << header << std::endl;
 }
 
 Response::~Response()
@@ -214,6 +215,23 @@ void	Response::setup_error(Request& req)
 			}
 		}
 	}
+	if (req.get_error_code() == 405)
+	{
+		size_t pos = header.find_last_of("\r\n\r\n");
+		header.erase(pos, pos + 8);
+		std::ostringstream oss;
+		oss << "Allow: ";
+		std::string methods = req.get_path_rules().allow_methods;
+		for (size_t i = 0; i < methods.size(); ++i)
+		{
+			if (methods[i] == ' ')
+				oss << ", ";
+			else
+				oss << methods[i];
+		}
+		oss << "\r\n\r\n";
+		header += oss.str();
+	}
 	std::cout << "Error status : " << error_status << std::endl;
 }
 
@@ -221,7 +239,6 @@ void	Response::setup_error(Request& req)
 std::vector<char>	Response::get_next_chunk()
 {
 	std::vector<char> buffer;
-	std::cout << "autoindex " << autoindex_sent << std::endl;
 	if (!header_sent)
 	{
 		header_sent = true;
